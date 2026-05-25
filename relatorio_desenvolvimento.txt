@@ -1,0 +1,118 @@
+================================================================================
+                       RELATÓRIO DE DESENVOLVIMENTO - PSICOFLOW
+================================================================================
+Este documento detalha o estado atual do desenvolvimento do PsicoFlow, um sistema
+SaaS Multi-Tenant de alta performance projetado para psicólogos autônomos e
+clínicas de psicologia, com foco em segurança, LGPD e automação.
+
+--------------------------------------------------------------------------------
+1. ARQUITETURA E TECNOLOGIAS UTILIZADAS
+--------------------------------------------------------------------------------
+O PsicoFlow utiliza uma das pilhas tecnológicas mais modernas do ecossistema Next:
+- Core: Next.js (React e TypeScript) com App Router para excelente performance,
+  renderização híbrida (SSR/RSC/Client) e roteamento de arquivos nativo.
+- Banco de Dados & ORM: PostgreSQL de nível empresarial gerenciado pelo Prisma
+  ORM para consultas rápidas, tipagem estática e migrações eficientes.
+- Estilização: Tailwind CSS v4 com suporte nativo a Dark Mode (classes dark:),
+  variáveis de tema centralizadas, cantos arredondados modernos e harmonia de cores.
+- Utilitários: Date-fns com suporte a pt-BR para manipulação avançada de datas na
+  agenda, Lucide-React para ícones vetoriais e Zod para validação rigorosa de esquemas.
+
+--------------------------------------------------------------------------------
+2. MODELAGEM DE BANCO DE DADOS (PRISMA SCHEMA)
+--------------------------------------------------------------------------------
+O banco de dados foi modelado com foco absoluto na separação rígida de dados de
+cada inquilino (Multi-Tenancy) e total conformidade com a LGPD (Lei Geral de
+Proteção de Dados), onde toda entidade relevante se conecta obrigatoriamente a um Tenant:
+
+- Tenant: Representa a clínica ou psicólogo independente. Contém metadados de
+  assinatura (trial, ativo, inadimplente, cancelado) e dados de integração.
+- User: Usuários do sistema (Psicólogo Admin ou Secretária) vinculados a um Tenant.
+- WhatsAppInstance: Configurações e tokens de integração via Evolution API.
+- Patient: Dados cadastrais dos pacientes, frequência de sessões e valor de sessão.
+- Session: Agenda de consultas com status (agendada, realizada, cancelada, falta).
+- ClinicalRecord: Prontuários eletrônicos detalhados. Apenas psicólogos têm
+  acesso ao conteúdo textual e de anexos (LGPD).
+- FinancialTransaction: Lançamentos de caixa (Receitas e Despesas) integrados ao
+  Mercado Pago com suporte a status de pagamento e conciliação.
+
+--------------------------------------------------------------------------------
+3. MÓDULOS E FUNCIONALIDADES DESENVOLVIDOS ATÉ O MOMENTO
+--------------------------------------------------------------------------------
+
+A) MULTI-TENANCY E SEGURANÇA (LGPD)
+- Isolamento total de dados na camada lógica da API. Todas as queries REST
+  filtram as informações pelo ID do Tenant ativo extraído da sessão segura.
+
+B) CONTROLE DE ACESSO BASEADO EM FUNÇÃO (RBAC)
+O sistema possui regras rígidas de segurança para dois perfis de usuários:
+- Psicólogo Administrador (psicologo_admin): Acesso completo a todas as áreas,
+  incluindo prontuários clínicos e transações financeiras.
+- Secretária (secretaria): Perfil operacional que gerencia a agenda e pacientes,
+  sendo bloqueado no middleware e nas rotas de API de ver ou editar prontuários e finanças.
+
+C) CONTROLE DE FLUXO E INADIMPLÊNCIA
+- O sistema detecta se a assinatura do Tenant está inadimplente. Em caso positivo,
+  o usuário é bloqueado no nível de middleware e redirecionado para a tela de
+  pagamento (/dashboard/pagamento) para regularizar seu status.
+
+D) AGENDA MENSAL EXPANDIDA E DINÂMICA
+- Calendário mensal completo construído com date-fns, suporte a Dark Mode,
+  exibição de pills coloridas baseadas no status de cada sessão (agendada,
+  realizada, cancelada, falta) e drawer lateral para agendamentos e visualizações rápidas.
+
+E) FINANCEIRO E INTEGRACAO MERCADO PAGO
+- Endpoints de fluxo de caixa implementados.
+- Webhook do Mercado Pago estruturado para atualizar as faturas e status de
+  pagamento automaticamente.
+
+F) INTEGRAÇÃO COM WHATSAPP
+- Conexão e monitoramento de instâncias preparados para envio de mensagens
+  pré-atendimento automáticas através da Evolution API.
+
+--------------------------------------------------------------------------------
+4. AUTENTICAÇÃO JWT E RESOLUÇÃO DO BUG DE PERSISTÊNCIA DE COOKIES
+--------------------------------------------------------------------------------
+O bypass temporário de desenvolvimento local foi totalmente removido, com a
+autenticação JWT baseada em cookies HttpOnly totalmente restabelecida.
+
+Recentemente, identificamos e corrigimos um problema crítico onde o usuário
+ficava preso em um loop infinito de redirecionamento (307) para a tela de login.
+
+- Causa Raiz: O servidor de autenticação tentava setar o cookie psicoflow_token
+  manualmente através da response retornada pelo helper successResponse
+  (response.cookies.set). No Next.js App Router, modificações em uma instância de
+  NextResponse pós-construção frequentemente falham em propagar o cabeçalho Set-Cookie.
+- Solução: Substituímos o fluxo de gravação manual pelo helper nativo
+  setAuthCookie(token) (em /src/lib/auth.ts), que utiliza a API cookies() de
+  next/headers oficial do Next.js. Isso garantiu a injeção nativa e infalível
+  do cookie HttpOnly seguro no navegador tanto no fluxo de Login quanto no de Registro.
+- Resultado: O fluxo de autenticação foi 100% estabilizado. O usuário realiza o
+  cadastro ou login, o cookie é persistido no navegador imediatamente e o
+  middleware libera o acesso ao dashboard sem loops ou erros de redirecionamento.
+
+--------------------------------------------------------------------------------
+5. ESTRUTURA GERAL DO CÓDIGO FONTE
+--------------------------------------------------------------------------------
+O diretório do projeto está organizado seguindo o padrão moderno do Next.js:
+- prisma/               : Configurações do Prisma, migrações e DDL SQL de referência.
+- src/app/              : Rotas protegidas (App Router) e endpoints REST da API.
+- src/components/       : Layouts (Sidebar, Header), botões e componentes visuais.
+- src/lib/              : Serviços utilitários de banco, criptografia, validações e flags.
+- src/types/            : Definições globais de interfaces TypeScript.
+- src/middleware.ts     : Lógica global de segurança (Edge runtime) que valida o JWT.
+
+--------------------------------------------------------------------------------
+6. PRÓXIMOS PASSOS RECOMENDADOS
+--------------------------------------------------------------------------------
+1. Conectar a interface do Frontend (telas do Dashboard) aos endpoints reais da
+   API REST, substituindo os states de mock por requisições fetch reais.
+2. Extrair as informações de clínica e role exibidas no DashboardSidebar e
+   DashboardHeader dinamicamente a partir do contexto de sessão ativo do usuário logado.
+3. Desenvolver as páginas correspondentes aos stubs: Financeiro, Prontuários
+   (listagem), WhatsApp, Configurações e Pagamento.
+4. Integrar o webhook real do Mercado Pago e o serviço de envio da Evolution API.
+
+================================================================================
+                                FIM DO RELATÓRIO
+================================================================================
