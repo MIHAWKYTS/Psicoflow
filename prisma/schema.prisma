@@ -1,0 +1,239 @@
+// ===========================
+// PsicoFlow - Prisma Schema
+// ===========================
+// Execução:
+//   npx prisma migrate dev --name init
+//   npx prisma generate
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── ENUMS ──────────────────────────────────────────────
+
+enum StatusAssinatura {
+  trial
+  ativo
+  inadimplente
+  cancelado
+}
+
+enum UserRole {
+  psicologo_admin
+  secretaria
+}
+
+enum StatusConexaoWhatsApp {
+  desconectado
+  qr_code_pendente
+  conectado
+}
+
+enum StatusPaciente {
+  ativo
+  inativo
+}
+
+enum FrequenciaSessoes {
+  semanal
+  quinzenal
+  mensal
+}
+
+enum StatusSessao {
+  agendada
+  realizada
+  cancelada
+  falta
+}
+
+enum TipoTransacao {
+  receita
+  despesa
+}
+
+enum CategoriaTransacao {
+  consultorio
+  pessoal
+}
+
+enum StatusPagamento {
+  pendente
+  pago
+  cancelado
+}
+
+// ─── MODELS ─────────────────────────────────────────────
+
+/// Tenant principal — representa uma clínica ou profissional autônomo.
+/// Todas as demais tabelas referenciam o tenant para isolamento multi-tenant (LGPD).
+model Tenant {
+  id                String            @id @default(uuid()) @db.Uuid
+  nomeClinica       String            @map("nome_clinica")
+  documento         String            // CPF ou CNPJ
+  statusAssinatura  StatusAssinatura  @default(trial) @map("status_assinatura")
+  dataFimTrial      DateTime          @map("data_fim_trial")
+  mpCustomerId      String?           @map("mp_customer_id")
+
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  // Relações
+  users                 User[]
+  whatsappInstances     WhatsAppInstance[]
+  patients              Patient[]
+  sessions              Session[]
+  clinicalRecords       ClinicalRecord[]
+  financialTransactions FinancialTransaction[]
+
+  @@map("tenants")
+}
+
+/// Usuário do sistema — psicólogo administrador ou secretária.
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  nome      String
+  email     String   @unique
+  senhaHash String   @map("senha_hash")
+  role      UserRole @default(psicologo_admin)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relações
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clinicalRecords ClinicalRecord[] @relation("AutorProntuario")
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+/// Instância de conexão WhatsApp via Evolution API.
+/// Cada psicólogo escaneia seu QR Code para conectar.
+model WhatsAppInstance {
+  id              String                @id @default(uuid()) @db.Uuid
+  tenantId        String                @map("tenant_id") @db.Uuid
+  instanceName    String                @map("instance_name")
+  tokenConexao    String?               @map("token_conexao")
+  statusConexao   StatusConexaoWhatsApp @default(desconectado) @map("status_conexao")
+
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  // Relações
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("whatsapp_instances")
+}
+
+/// Paciente vinculado a um tenant.
+model Patient {
+  id                  String           @id @default(uuid()) @db.Uuid
+  tenantId            String           @map("tenant_id") @db.Uuid
+  nome                String
+  telefoneWhatsapp    String?          @map("telefone_whatsapp")
+  status              StatusPaciente   @default(ativo)
+  frequenciaSessoes   FrequenciaSessoes? @map("frequencia_sessoes")
+  valorSessaoPadrao   Decimal?         @map("valor_sessao_padrao") @db.Decimal(10, 2)
+
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  // Relações
+  tenant              Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions            Session[]
+  clinicalRecords     ClinicalRecord[]
+  financialTransactions FinancialTransaction[]
+
+  @@index([tenantId])
+  @@map("patients")
+}
+
+/// Sessão agendada entre psicólogo e paciente.
+model Session {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  patientId       String       @map("patient_id") @db.Uuid
+  dataHoraInicio  DateTime     @map("data_hora_inicio")
+  dataHoraFim     DateTime     @map("data_hora_fim")
+  status          StatusSessao @default(agendada)
+  lembreteEnviado Boolean      @default(false) @map("lembrete_enviado")
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  // Relações
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient         Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinicalRecords ClinicalRecord[]
+
+  @@index([tenantId])
+  @@index([patientId])
+  @@index([dataHoraInicio])
+  @@map("sessions")
+}
+
+/// Prontuário eletrônico — protegido pela LGPD.
+/// Apenas psicólogo_admin tem acesso. Secretária é bloqueada.
+model ClinicalRecord {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  patientId       String   @map("patient_id") @db.Uuid
+  sessionId       String?  @map("session_id") @db.Uuid
+  conteudo        String   @db.Text
+  suportaAnexo    Boolean  @default(false) @map("suporta_anexo")
+  urlAnexo        String?  @map("url_anexo")
+  usuarioAutorId  String   @map("usuario_autor_id") @db.Uuid
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relações
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  autor   User     @relation("AutorProntuario", fields: [usuarioAutorId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([patientId])
+  @@index([sessionId])
+  @@map("clinical_records")
+}
+
+/// Transações financeiras — receitas e despesas.
+/// Integração com Mercado Pago para links de pagamento.
+model FinancialTransaction {
+  id                String            @id @default(uuid()) @db.Uuid
+  tenantId          String            @map("tenant_id") @db.Uuid
+  patientId         String?           @map("patient_id") @db.Uuid
+  tipo              TipoTransacao
+  categoria         CategoriaTransacao
+  descricao         String?
+  valor             Decimal           @db.Decimal(10, 2)
+  statusPagamento   StatusPagamento   @default(pendente) @map("status_pagamento")
+  dataVencimento    DateTime          @map("data_vencimento")
+  dataPagamento     DateTime?         @map("data_pagamento")
+  mpPaymentId       String?           @map("mp_payment_id")
+  mpLinkPagamento   String?           @map("mp_link_pagamento")
+
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  // Relações
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([patientId])
+  @@index([dataVencimento])
+  @@index([statusPagamento])
+  @@map("financial_transactions")
+}
