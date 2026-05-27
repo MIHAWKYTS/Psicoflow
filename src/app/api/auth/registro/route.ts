@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
           nome,
           email,
           senhaHash: hash,
-          role: "psicologo_admin",
+          role: "psicologo",
         },
         include: {
           tenant: true,

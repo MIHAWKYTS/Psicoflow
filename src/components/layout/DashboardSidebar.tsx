@@ -10,23 +10,26 @@ import {
   FileText,
   DollarSign,
   MessageSquare,
+  CheckSquare,
+  FolderKanban,
   Settings,
   Shield,
   LogOut,
-  Menu,
 } from "lucide-react";
 
 interface SidebarProps {
-  userRole?: "psicologo_admin" | "secretaria";
+  userRole?: "psicologo" | "secretaria" | "admin";
 }
 
-export default function DashboardSidebar({ userRole = "psicologo_admin" }: SidebarProps) {
+export default function DashboardSidebar({ userRole = "psicologo" }: SidebarProps) {
   const pathname = usePathname();
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Agenda", href: "/dashboard/agenda", icon: Calendar },
     { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
+    { name: "Rotina", href: "/dashboard/rotina", icon: CheckSquare },
+    { name: "Casos", href: "/dashboard/casos", icon: FolderKanban },
     {
       name: "Prontuários",
       href: "/dashboard/prontuarios",
@@ -39,7 +42,7 @@ export default function DashboardSidebar({ userRole = "psicologo_admin" }: Sideb
       icon: DollarSign,
       restricted: true,
     },
-    { name: "WhatsApp", href: "/dashboard/whatsapp", icon: MessageSquare },
+    { name: "Engajamento", href: "/dashboard/engajamento", icon: MessageSquare },
     { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
   ];
 
@@ -104,14 +107,18 @@ export default function DashboardSidebar({ userRole = "psicologo_admin" }: Sideb
       <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
         <div className="flex items-center gap-3 mb-3 px-2">
           <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-700 dark:text-slate-350">
-            {userRole === "psicologo_admin" ? "PA" : "SC"}
+            {userRole === "psicologo" || userRole === "admin" ? "PA" : "SC"}
           </div>
           <div className="flex flex-col truncate">
             <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
-              {userRole === "psicologo_admin" ? "Dr. Psicólogo" : "Secretária"}
+              {userRole === "psicologo" || userRole === "admin" ? "Dr. Psicólogo" : "Secretária"}
             </span>
             <span className="text-[10px] text-slate-400 font-semibold capitalize">
-              {userRole === "psicologo_admin" ? "Administrador" : "Secretária"}
+              {userRole === "admin"
+                ? "Admin Global"
+                : userRole === "psicologo"
+                  ? "Administrador"
+                  : "Secretária"}
             </span>
           </div>
         </div>

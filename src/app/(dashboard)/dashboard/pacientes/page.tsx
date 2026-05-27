@@ -1,62 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Search, User, Phone, Calendar, Shield, CreditCard, ChevronRight } from "lucide-react";
 
-// Mock de pacientes para renderização visual premium imediata
-const MOCK_PATIENTS = [
-  {
-    id: "p1",
-    nome: "Ana Beatriz Silva",
-    telefoneWhatsapp: "(11) 98765-4321",
-    status: "ativo",
-    frequenciaSessoes: "semanal",
-    valorSessaoPadrao: 150.00,
-    ultimaSessao: "2026-05-20",
-  },
-  {
-    id: "p2",
-    nome: "Carlos Eduardo Costa",
-    telefoneWhatsapp: "(21) 99888-7766",
-    status: "ativo",
-    frequenciaSessoes: "quinzenal",
-    valorSessaoPadrao: 180.00,
-    ultimaSessao: "2026-05-20",
-  },
-  {
-    id: "p3",
-    nome: "Juliana Santos",
-    telefoneWhatsapp: "(31) 97777-6655",
-    status: "ativo",
-    frequenciaSessoes: "semanal",
-    valorSessaoPadrao: 160.00,
-    ultimaSessao: "2026-05-20",
-  },
-  {
-    id: "p4",
-    nome: "Mariana Souza",
-    telefoneWhatsapp: "(11) 95555-4433",
-    status: "ativo",
-    frequenciaSessoes: "mensal",
-    valorSessaoPadrao: 150.00,
-    ultimaSessao: "2026-05-21",
-  },
-  {
-    id: "p5",
-    nome: "Rodrigo Almeida",
-    telefoneWhatsapp: "(19) 96666-5544",
-    status: "inativo",
-    frequenciaSessoes: "semanal",
-    valorSessaoPadrao: 200.00,
-    ultimaSessao: "2026-05-21",
-  },
-];
-
 export default function PacientesPage() {
-  const [patients, setPatients] = useState(MOCK_PATIENTS);
+  const [patients, setPatients] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("todos");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchPatients() {
+      try {
+        const response = await fetch("/api/patients");
+        if (response.ok) {
+          const resData = await response.json();
+          setPatients(resData.data || []);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar pacientes", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPatients();
+  }, []);
 
   const filteredPatients = patients.filter((p) => {
     const matchesSearch = p.nome.toLowerCase().includes(search.toLowerCase());

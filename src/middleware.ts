@@ -5,6 +5,7 @@ import {
   PUBLIC_ROUTES,
   INADIMPLENTE_ALLOWED_ROUTES,
   SECRETARIA_BLOCKED_ROUTES,
+  ADMIN_ONLY_ROUTES,
 } from "./lib/constants";
 
 // Usando `jose` ao invés de `jsonwebtoken` pois o middleware Next.js roda no Edge Runtime,
@@ -78,7 +79,8 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // 3. Controle de Acesso Baseado em Role (RBAC) - Secretária
+    // 3. Controle de Acesso Baseado em Role (RBAC)
+    // 3.1. Secretária: bloqueia acesso a faturamento total e prontuários
     if (role === "secretaria") {
       const isBlockedRoute = SECRETARIA_BLOCKED_ROUTES.some((route) =>
         pathname.startsWith(route)
@@ -87,12 +89,31 @@ export async function middleware(request: NextRequest) {
       if (isBlockedRoute) {
         if (pathname.startsWith("/api")) {
           return NextResponse.json(
-            { success: false, error: "Acesso negado. Esta funcionalidade é restrita para Psicólogos administradores." },
+            { success: false, error: "Acesso negado. Esta funcionalidade é restrita para Psicólogos." },
             { status: 403 }
           );
         }
         
         // Redireciona tela restrita para a Home do Dashboard
+        const dashboardUrl = new URL("/dashboard", request.url);
+        return NextResponse.redirect(dashboardUrl);
+      }
+    }
+
+    // 3.2. Admin Global: Rotas exclusivas do Super Admin
+    if (role !== "admin") {
+      const isAdminRoute = ADMIN_ONLY_ROUTES.some((route) =>
+        pathname.startsWith(route)
+      );
+
+      if (isAdminRoute) {
+        if (pathname.startsWith("/api")) {
+          return NextResponse.json(
+            { success: false, error: "Acesso negado. Apenas o administrador global pode acessar." },
+            { status: 403 }
+          );
+        }
+        
         const dashboardUrl = new URL("/dashboard", request.url);
         return NextResponse.redirect(dashboardUrl);
       }

@@ -10,7 +10,7 @@ export default function DashboardLayout({
 }) {
   // Em produção, esses dados virão do contexto de autenticação ou da sessão.
   // Por enquanto, usamos mocks para renderização estática rápida.
-  const userRole = "psicologo_admin";
+  const userRole = "psicologo";
   const nomeClinica = "Espaço Psicologia Integrada";
   const statusAssinatura = "trial";
 

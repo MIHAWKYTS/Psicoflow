@@ -25,7 +25,8 @@ enum StatusAssinatura {
 }
 
 enum UserRole {
-  psicologo_admin
+  admin
+  psicologo
   secretaria
 }
 
@@ -74,15 +75,15 @@ enum StatusPagamento {
 /// Tenant principal — representa uma clínica ou profissional autônomo.
 /// Todas as demais tabelas referenciam o tenant para isolamento multi-tenant (LGPD).
 model Tenant {
-  id                String            @id @default(uuid()) @db.Uuid
-  nomeClinica       String            @map("nome_clinica")
-  documento         String            // CPF ou CNPJ
-  statusAssinatura  StatusAssinatura  @default(trial) @map("status_assinatura")
-  dataFimTrial      DateTime          @map("data_fim_trial")
-  mpCustomerId      String?           @map("mp_customer_id")
+  id               String           @id @default(uuid()) @db.Uuid
+  nomeClinica      String           @map("nome_clinica")
+  documento        String // CPF ou CNPJ
+  statusAssinatura StatusAssinatura @default(trial) @map("status_assinatura")
+  dataFimTrial     DateTime         @map("data_fim_trial")
+  mpCustomerId     String?          @map("mp_customer_id")
 
-  createdAt         DateTime          @default(now()) @map("created_at")
-  updatedAt         DateTime          @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relações
   users                 User[]
@@ -91,6 +92,8 @@ model Tenant {
   sessions              Session[]
   clinicalRecords       ClinicalRecord[]
   financialTransactions FinancialTransaction[]
+  tasks                 Task[]
+  clinicalCases         ClinicalCase[]
 
   @@map("tenants")
 }
@@ -102,7 +105,7 @@ model User {
   nome      String
   email     String   @unique
   senhaHash String   @map("senha_hash")
-  role      UserRole @default(psicologo_admin)
+  role      UserRole @default(psicologo)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -110,6 +113,8 @@ model User {
   // Relações
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clinicalRecords ClinicalRecord[] @relation("AutorProntuario")
+  tasks           Task[]
+  clinicalCases   ClinicalCase[]
 
   @@index([tenantId])
   @@map("users")
@@ -118,14 +123,14 @@ model User {
 /// Instância de conexão WhatsApp via Evolution API.
 /// Cada psicólogo escaneia seu QR Code para conectar.
 model WhatsAppInstance {
-  id              String                @id @default(uuid()) @db.Uuid
-  tenantId        String                @map("tenant_id") @db.Uuid
-  instanceName    String                @map("instance_name")
-  tokenConexao    String?               @map("token_conexao")
-  statusConexao   StatusConexaoWhatsApp @default(desconectado) @map("status_conexao")
+  id            String                @id @default(uuid()) @db.Uuid
+  tenantId      String                @map("tenant_id") @db.Uuid
+  instanceName  String                @map("instance_name")
+  tokenConexao  String?               @map("token_conexao")
+  statusConexao StatusConexaoWhatsApp @default(desconectado) @map("status_conexao")
 
-  createdAt       DateTime              @default(now()) @map("created_at")
-  updatedAt       DateTime              @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relações
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -136,22 +141,24 @@ model WhatsAppInstance {
 
 /// Paciente vinculado a um tenant.
 model Patient {
-  id                  String           @id @default(uuid()) @db.Uuid
-  tenantId            String           @map("tenant_id") @db.Uuid
-  nome                String
-  telefoneWhatsapp    String?          @map("telefone_whatsapp")
-  status              StatusPaciente   @default(ativo)
-  frequenciaSessoes   FrequenciaSessoes? @map("frequencia_sessoes")
-  valorSessaoPadrao   Decimal?         @map("valor_sessao_padrao") @db.Decimal(10, 2)
+  id                String             @id @default(uuid()) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  nome              String
+  email             String?
+  telefoneWhatsapp  String?            @map("telefone_whatsapp")
+  status            StatusPaciente     @default(ativo)
+  frequenciaSessoes FrequenciaSessoes? @map("frequencia_sessoes")
+  valorSessaoPadrao Decimal?           @map("valor_sessao_padrao") @db.Decimal(10, 2)
 
-  createdAt           DateTime         @default(now()) @map("created_at")
-  updatedAt           DateTime         @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relações
-  tenant              Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sessions            Session[]
-  clinicalRecords     ClinicalRecord[]
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions              Session[]
+  clinicalRecords       ClinicalRecord[]
   financialTransactions FinancialTransaction[]
+  tasks                 Task[]
 
   @@index([tenantId])
   @@map("patients")
@@ -167,8 +174,8 @@ model Session {
   status          StatusSessao @default(agendada)
   lembreteEnviado Boolean      @default(false) @map("lembrete_enviado")
 
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relações
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -184,17 +191,17 @@ model Session {
 /// Prontuário eletrônico — protegido pela LGPD.
 /// Apenas psicólogo_admin tem acesso. Secretária é bloqueada.
 model ClinicalRecord {
-  id              String   @id @default(uuid()) @db.Uuid
-  tenantId        String   @map("tenant_id") @db.Uuid
-  patientId       String   @map("patient_id") @db.Uuid
-  sessionId       String?  @map("session_id") @db.Uuid
-  conteudo        String   @db.Text
-  suportaAnexo    Boolean  @default(false) @map("suporta_anexo")
-  urlAnexo        String?  @map("url_anexo")
-  usuarioAutorId  String   @map("usuario_autor_id") @db.Uuid
+  id             String  @id @default(uuid()) @db.Uuid
+  tenantId       String  @map("tenant_id") @db.Uuid
+  patientId      String  @map("patient_id") @db.Uuid
+  sessionId      String? @map("session_id") @db.Uuid
+  conteudo       String  @db.Text
+  suportaAnexo   Boolean @default(false) @map("suporta_anexo")
+  urlAnexo       String? @map("url_anexo")
+  usuarioAutorId String  @map("usuario_autor_id") @db.Uuid
 
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relações
   tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -211,21 +218,21 @@ model ClinicalRecord {
 /// Transações financeiras — receitas e despesas.
 /// Integração com Mercado Pago para links de pagamento.
 model FinancialTransaction {
-  id                String            @id @default(uuid()) @db.Uuid
-  tenantId          String            @map("tenant_id") @db.Uuid
-  patientId         String?           @map("patient_id") @db.Uuid
-  tipo              TipoTransacao
-  categoria         CategoriaTransacao
-  descricao         String?
-  valor             Decimal           @db.Decimal(10, 2)
-  statusPagamento   StatusPagamento   @default(pendente) @map("status_pagamento")
-  dataVencimento    DateTime          @map("data_vencimento")
-  dataPagamento     DateTime?         @map("data_pagamento")
-  mpPaymentId       String?           @map("mp_payment_id")
-  mpLinkPagamento   String?           @map("mp_link_pagamento")
+  id              String             @id @default(uuid()) @db.Uuid
+  tenantId        String             @map("tenant_id") @db.Uuid
+  patientId       String?            @map("patient_id") @db.Uuid
+  tipo            TipoTransacao
+  categoria       CategoriaTransacao
+  descricao       String?
+  valor           Decimal            @db.Decimal(10, 2)
+  statusPagamento StatusPagamento    @default(pendente) @map("status_pagamento")
+  dataVencimento  DateTime           @map("data_vencimento")
+  dataPagamento   DateTime?          @map("data_pagamento")
+  mpPaymentId     String?            @map("mp_payment_id")
+  mpLinkPagamento String?            @map("mp_link_pagamento")
 
-  createdAt         DateTime          @default(now()) @map("created_at")
-  updatedAt         DateTime          @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relações
   tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -236,4 +243,58 @@ model FinancialTransaction {
   @@index([dataVencimento])
   @@index([statusPagamento])
   @@map("financial_transactions")
+}
+
+// ─── ROTINAS E SUPERVISÃO ───────────────────────────────
+
+enum StatusTarefa {
+  pendente
+  em_andamento
+  concluida
+}
+
+/// Gestão de Tarefas (Kanban / To-Do)
+model Task {
+  id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  usuarioId      String       @map("usuario_id") @db.Uuid
+  patientId      String?      @map("patient_id") @db.Uuid
+  titulo         String
+  descricao      String?      @db.Text
+  status         StatusTarefa @default(pendente)
+  dataVencimento DateTime?    @map("data_vencimento")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relações
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  usuario User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([usuarioId])
+  @@map("tasks")
+}
+
+/// Casos Clínicos e Supervisão (Anotações, Uploads)
+model ClinicalCase {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  usuarioId      String   @map("usuario_id") @db.Uuid
+  titulo         String
+  descricao      String?  @db.Text
+  hipoteses      String?  @db.Text
+  documentosUrls String[] @map("documentos_urls") // Array de URLs (Supabase Storage)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relações
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  usuario User   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([usuarioId])
+  @@map("clinical_cases")
 }
