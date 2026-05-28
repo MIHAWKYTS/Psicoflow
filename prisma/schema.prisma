@@ -139,6 +139,7 @@ model Patient {
   id                  String           @id @default(uuid()) @db.Uuid
   tenantId            String           @map("tenant_id") @db.Uuid
   nome                String
+  cpf                 String?          @map("cpf")
   telefoneWhatsapp    String?          @map("telefone_whatsapp")
   status              StatusPaciente   @default(ativo)
   frequenciaSessoes   FrequenciaSessoes? @map("frequencia_sessoes")

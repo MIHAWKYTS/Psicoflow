@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
-import { patientSchema } from "@/lib/validations";
+import { patientSchema, patientStatusSchema } from "@/lib/validations";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
 
 // Helper para validar e buscar paciente garantindo isolamento por tenant
@@ -88,6 +88,42 @@ export async function DELETE(
     } catch (err) {
       console.error("Erro ao deletar paciente:", err);
       return errorResponse("Erro interno no servidor ao deletar paciente", 500);
+    }
+  });
+}
+
+// ─── PATCH /api/patients/[id] (Toggle de Status) ────────────
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return withAuth(async (ctx) => {
+    try {
+      const { id } = await params;
+
+      // Garante isolamento multi-tenant
+      const patient = await findPatientOrError(id, ctx.tenantId);
+      if (!patient) {
+        return errorResponse("Paciente não encontrado", 404);
+      }
+
+      const body = await req.json();
+      const parsed = patientStatusSchema.safeParse(body);
+
+      if (!parsed.success) {
+        const errorMsg = parsed.error.issues.map((i) => i.message).join(", ");
+        return errorResponse(errorMsg, 400);
+      }
+
+      const updated = await prisma.patient.update({
+        where: { id },
+        data: { status: parsed.data.status },
+      });
+
+      return successResponse(updated, "Status do paciente atualizado com sucesso");
+    } catch (err) {
+      console.error("Erro ao atualizar status do paciente:", err);
+      return errorResponse("Erro interno no servidor", 500);
     }
   });
 }

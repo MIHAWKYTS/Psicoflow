@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   startOfMonth,
   endOfMonth,
@@ -35,6 +35,7 @@ import {
   FileText,
   CalendarDays,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 
 // ─── DEFINIÇÕES E TIPAGENS ───────────────────────────────────
@@ -166,6 +167,14 @@ export default function AgendaPage() {
   const [formStatus, setFormStatus] = useState<"agendada" | "realizada" | "cancelada" | "falta">("agendada");
   const [formNotes, setFormNotes] = useState("");
 
+  // ─── Estados do Disparo de Lembretes WhatsApp ─────────────────────────────
+  const [isSendingReminders, setIsSendingReminders] = useState(false);
+  const [reminderToast, setReminderToast] = useState<{
+    type: "progress" | "success" | "error";
+    message: string;
+  } | null>(null);
+  const reminderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // ─── CÁLCULOS DO CALENDÁRIO MENSAL (date-fns) ───────────────
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
@@ -176,7 +185,7 @@ export default function AgendaPage() {
     return eachDayOfInterval({ start: startDate, end: endDate });
   }, [startDate, endDate]);
 
-  // ─── FILTRAGEM DAS SESSÕES ─────────────────────────────────
+  // ─── FILTRAGEM E INDEXAÇÃO DAS SESSÕES ─────────────────────
   const filteredSessions = useMemo(() => {
     return sessions.filter((s) => {
       const matchesSearch = s.patient.nome.toLowerCase().includes(search.toLowerCase());
@@ -184,6 +193,19 @@ export default function AgendaPage() {
       return matchesSearch && matchesStatus;
     });
   }, [sessions, search, filterStatus]);
+
+  // Indexação antecipada para evitar loop O(N*D) no calendário
+  const sessionsByDate = useMemo(() => {
+    const dictionary: Record<string, SessionMock[]> = {};
+    filteredSessions.forEach((session) => {
+      const dateKey = format(parseISO(session.dataHoraInicio), "yyyy-MM-dd");
+      if (!dictionary[dateKey]) {
+        dictionary[dateKey] = [];
+      }
+      dictionary[dateKey].push(session);
+    });
+    return dictionary;
+  }, [filteredSessions]);
 
   // Navegação de Meses
   const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
@@ -264,6 +286,109 @@ export default function AgendaPage() {
     setSelectedSession(null);
   };
 
+  // ─── 8.2 — Handler do botão "Disparar Lembretes do Dia" ───────────────────
+  const handleSendReminders = useCallback(async () => {
+    // 8.7 — Guarda contra duplo clique (já garantido pelo disabled, mas defensive)
+    if (isSendingReminders) return;
+
+    setIsSendingReminders(true);
+    setReminderToast({ type: "progress", message: "Iniciando disparo de lembretes..." });
+
+    try {
+      const res = await fetch("/api/whatsapp/send-reminders", { method: "POST" });
+      const json = await res.json();
+
+      // 8.6 — Tratar erros da API (instância desconectada, env ausente)
+      if (!res.ok) {
+        setReminderToast({
+          type: "error",
+          message: json.error ?? "Erro ao iniciar o disparo de lembretes.",
+        });
+        setIsSendingReminders(false);
+        return;
+      }
+
+      const { jobId, total } = json.data ?? json;
+
+      if (total === 0) {
+        setReminderToast({ type: "success", message: "Nenhuma sessão pendente de lembrete hoje." });
+        setIsSendingReminders(false);
+        setTimeout(() => setReminderToast(null), 4000);
+        return;
+      }
+
+      // 8.4 — Toast inicial de progresso
+      setReminderToast({ type: "progress", message: `Enviando 0 de ${total}...` });
+
+      // 8.3 — Polling a cada 2 segundos
+      reminderPollRef.current = setInterval(async () => {
+        try {
+          const statusRes = await fetch(
+            `/api/whatsapp/reminder-status?jobId=${jobId}`
+          );
+          const statusJson = await statusRes.json();
+
+          if (!statusRes.ok) {
+            clearInterval(reminderPollRef.current!);
+            setReminderToast({
+              type: "error",
+              message: statusJson.error ?? "Erro ao verificar progresso.",
+            });
+            setIsSendingReminders(false);
+            return;
+          }
+
+          const { sent, total: tot, status: jobStatus } = statusJson;
+
+          if (jobStatus === "running") {
+            // 8.4 — Atualizar toast de progresso dinâmico
+            setReminderToast({
+              type: "progress",
+              message: `Enviando ${sent} de ${tot}...`,
+            });
+          } else if (jobStatus === "done") {
+            // 8.5 — Toast de sucesso e encerrar polling
+            clearInterval(reminderPollRef.current!);
+            setReminderToast({
+              type: "success",
+              message: `✓ ${sent} lembrete(s) enviado(s) com sucesso!`,
+            });
+            setIsSendingReminders(false);
+            setTimeout(() => setReminderToast(null), 5000);
+          } else if (jobStatus === "error") {
+            clearInterval(reminderPollRef.current!);
+            setReminderToast({
+              type: "error",
+              message: statusJson.errorMessage ?? "Erro durante o disparo.",
+            });
+            setIsSendingReminders(false);
+          }
+        } catch {
+          clearInterval(reminderPollRef.current!);
+          setReminderToast({
+            type: "error",
+            message: "Erro de conexão ao verificar progresso do disparo.",
+          });
+          setIsSendingReminders(false);
+        }
+      }, 2000);
+    } catch {
+      // 8.6 — Erro de rede ou servidor
+      setReminderToast({
+        type: "error",
+        message: "Falha de conexão. Verifique o servidor e tente novamente.",
+      });
+      setIsSendingReminders(false);
+    }
+  }, [isSendingReminders]);
+
+  // Limpar polling ao desmontar o componente
+  useEffect(() => {
+    return () => {
+      if (reminderPollRef.current) clearInterval(reminderPollRef.current);
+    };
+  }, []);
+
   // ─── ESTILOS VISUAIS PARA PILLS E BADGES ───────────────────
   const statusConfig = {
     agendada: {
@@ -309,13 +434,31 @@ export default function AgendaPage() {
             Gerencie atendimentos, controle presenças, faltas e agende novas sessões clicando diretamente nos dias.
           </p>
         </div>
-        <button
-          onClick={() => handleDayClick(new Date(2026, 4, 20))}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-500 hover:bg-sky-600 dark:bg-sky-500 dark:hover:bg-sky-600 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-sky-500/20 active:scale-[0.98] cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Novo Agendamento</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* 8.1 — Botão Disparar Lembretes do Dia */}
+          <button
+            id="btn-disparar-lembretes"
+            type="button"
+            onClick={handleSendReminders}
+            disabled={isSendingReminders}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-500/20 active:scale-[0.98] cursor-pointer"
+          >
+            {isSendingReminders ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <MessageSquare className="w-4 h-4" />
+            )}
+            <span>{isSendingReminders ? "Disparando..." : "Disparar Lembretes"}</span>
+          </button>
+
+          <button
+            onClick={() => handleDayClick(new Date(2026, 4, 20))}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-500 hover:bg-sky-600 dark:bg-sky-500 dark:hover:bg-sky-600 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-sky-500/20 active:scale-[0.98] cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Novo Agendamento</span>
+          </button>
+        </div>
       </div>
 
       {/* ─── BARRA DE BUSCA, FILTROS E CONTROLES ─── */}
@@ -401,10 +544,8 @@ export default function AgendaPage() {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isDayToday = isToday(day);
             
-            // Filtra as sessões que ocorrem neste dia específico
-            const daySessions = filteredSessions.filter((session) =>
-              isSameDay(parseISO(session.dataHoraInicio), day)
-            );
+            // Recupera as sessões já indexadas para este dia em O(1)
+            const daySessions = sessionsByDate[format(day, "yyyy-MM-dd")] || [];
 
             // Ordena sessões por hora de início
             const sortedSessions = [...daySessions].sort(
@@ -761,6 +902,34 @@ export default function AgendaPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ─── Toast de Progresso / Resultado do Disparo WhatsApp ─── */}
+      {reminderToast && (
+        <div
+          role="status"
+          className={`fixed bottom-6 right-6 z-[60] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl font-semibold text-sm max-w-sm transition-all duration-300 ${
+            reminderToast.type === "progress"
+              ? "bg-slate-900 dark:bg-slate-800 text-white border border-slate-700"
+              : reminderToast.type === "success"
+              ? "bg-emerald-500 text-white border border-emerald-400"
+              : "bg-rose-500 text-white border border-rose-400"
+          }`}
+        >
+          {reminderToast.type === "progress" && (
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+          )}
+          <span className="flex-1">{reminderToast.message}</span>
+          {reminderToast.type !== "progress" && (
+            <button
+              onClick={() => setReminderToast(null)}
+              className="ml-1 opacity-80 hover:opacity-100 cursor-pointer shrink-0"
+              aria-label="Fechar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )}
     </div>
