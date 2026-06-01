@@ -132,7 +132,7 @@ export const financialTransactionSchema = z.object({
 
 export const patientStatusSchema = z.object({
   status: z.enum(["ativo", "inativo"], {
-    errorMap: () => ({ message: "Status deve ser 'ativo' ou 'inativo'" }),
+    error: "Status deve ser 'ativo' ou 'inativo'",
   }),
 });
 
