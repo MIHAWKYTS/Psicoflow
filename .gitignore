@@ -36,3 +36,11 @@ prisma/*.db
 # IDE
 .vscode/
 .idea/
+.cursor/
+
+# Agents & Specs
+.agent/
+.claude/
+.codex/
+openspec/
+.openspec.yaml
