@@ -12,7 +12,7 @@ export default function DashboardLayout({
   // Por enquanto, usamos mocks para renderização estática rápida.
   const userRole = "psicologo";
   const nomeClinica = "Espaço Psicologia Integrada";
-  const statusAssinatura = "trial";
+  const statusAssinatura = "trial" as const;
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950/60 overflow-hidden font-sans transition-all duration-300">
