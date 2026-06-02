@@ -6,7 +6,7 @@ import { successResponse, errorResponse } from "@/lib/api-helpers";
 export async function GET(req: NextRequest) {
   return withAuth(async (ctx) => {
     // Validação estrita de Super Admin
-    if (ctx.role !== "psicologo_admin") {
+    if (ctx.email !== process.env.ADMIN_EMAIL) {
       return errorResponse("Acesso negado. Apenas super administradores.", 403);
     }
 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
           valor: true,
         },
         where: {
-          status: "pago",
+          statusPagamento: "pago",
         },
       });
 
