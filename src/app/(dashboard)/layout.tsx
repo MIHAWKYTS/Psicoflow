@@ -1,18 +1,44 @@
-"use client";
 
+// Não usar "use client" aqui.
+
+import { cookies } from "next/headers";
+import { jwtVerify } from "jose";
+import { redirect } from "next/navigation";
 import DashboardSidebar from "@/components/layout/DashboardSidebar";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 
-export default function DashboardLayout({
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "TROCAR_POR_UM_SEGREDO_FORTE_EM_PRODUCAO"
+);
+
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Em produção, esses dados virão do contexto de autenticação ou da sessão.
-  // Por enquanto, usamos mocks para renderização estática rápida.
-  const userRole = "psicologo_admin";
-  const nomeClinica = "Espaço Psicologia Integrada";
-  const statusAssinatura = "trial";
+  // ── Lê e valida o token JWT do cookie ────────────────────────────────────
+  const cookieStore = await cookies();
+  const token = cookieStore.get("psicoflow_token")?.value;
+
+  if (!token) {
+    redirect("/login");
+  }
+
+  let userRole: "psicologo_admin" | "secretaria" = "psicologo_admin";
+  let nomeClinica = "PsicoFlow";
+  let statusAssinatura = "trial";
+  let nomeUsuario = "";
+
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    userRole = (payload.role as "psicologo_admin" | "secretaria") ?? "psicologo_admin";
+    statusAssinatura = (payload.statusAssinatura as string) ?? "trial";
+    nomeUsuario = (payload.email as string) ?? "";
+    // nomeClinica poderia vir do banco se necessário — por ora usamos o padrão
+  } catch {
+    // Token inválido/expirado: redireciona para login
+    redirect("/login");
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950/60 overflow-hidden font-sans transition-all duration-300">
