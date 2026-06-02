@@ -57,10 +57,10 @@ export async function POST(req: NextRequest) {
       return user;
     });
 
-    // Gerar token de autenticação
     const token = generateToken({
       userId: result.id,
       tenantId: result.tenantId,
+      nome: result.nome,
       email: result.email,
       role: result.role,
       statusAssinatura: result.tenant.statusAssinatura,

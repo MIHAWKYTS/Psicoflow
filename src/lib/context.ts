@@ -7,6 +7,8 @@ export interface RequestContext {
   tenantId: string;
   role: UserRole;
   subscriptionStatus: string;
+  email: string;
+  nome?: string;
 }
 
 /**
@@ -19,8 +21,11 @@ export async function getRequestContext(): Promise<RequestContext | null> {
   const tenantId = reqHeaders.get("x-tenant-id");
   const role = reqHeaders.get("x-user-role");
   const subscriptionStatus = reqHeaders.get("x-subscription-status");
+  const email = reqHeaders.get("x-user-email");
+  const encodedNome = reqHeaders.get("x-user-nome");
+  const nome = encodedNome ? decodeURIComponent(encodedNome) : undefined;
 
-  if (!userId || !tenantId || !role || !subscriptionStatus) {
+  if (!userId || !tenantId || !role || !subscriptionStatus || !email) {
     return null;
   }
 
@@ -29,6 +34,8 @@ export async function getRequestContext(): Promise<RequestContext | null> {
     tenantId,
     role: role as UserRole,
     subscriptionStatus,
+    email,
+    nome,
   };
 }
 
