@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         clinicasResumo: clinicas.map(c => ({
           id: c.id,
           nome: c.nomeClinica,
-          plano: c.planoId || "Gratuito",
+          //plano: c.planoId || "Gratuito",
           status: c.statusAssinatura,
           dataCriacao: c.createdAt,
           qtdUsuarios: c._count.users,
