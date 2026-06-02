@@ -35,10 +35,10 @@ export async function POST(req: NextRequest) {
       return errorResponse("Credenciais inválidas", 401);
     }
 
-    // Gerar token de autenticação
     const token = generateToken({
       userId: user.id,
       tenantId: user.tenantId,
+      nome: user.nome,
       email: user.email,
       role: user.role,
       statusAssinatura: user.tenant.statusAssinatura,

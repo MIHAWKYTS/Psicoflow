@@ -101,7 +101,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // 3.2. Admin Global: Rotas exclusivas do Super Admin
-    if (role !== "admin") {
+    if (payload.email !== process.env.ADMIN_EMAIL) {
       const isAdminRoute = ADMIN_ONLY_ROUTES.some((route) =>
         pathname.startsWith(route)
       );
@@ -125,6 +125,8 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set("x-tenant-id", payload.tenantId as string);
     requestHeaders.set("x-user-role", role);
     requestHeaders.set("x-subscription-status", statusAssinatura);
+    requestHeaders.set("x-user-email", payload.email as string);
+    if (payload.nome) requestHeaders.set("x-user-nome", encodeURIComponent(payload.nome as string));
 
     return NextResponse.next({
       request: {
