@@ -1,30 +1,29 @@
-"use client";
-
 import DashboardSidebar from "@/components/layout/DashboardSidebar";
 import DashboardHeader from "@/components/layout/DashboardHeader";
+import { getAuthUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Em produção, esses dados virão do contexto de autenticação ou da sessão.
-  // Por enquanto, usamos mocks para renderização estática rápida.
-  const userRole = "psicologo";
-  const nomeClinica = "Espaço Psicologia Integrada";
-  const statusAssinatura = "trial" as const;
+  const user = await getAuthUser();
+
+  if (!user) {
+    redirect("/login");
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950/60 overflow-hidden font-sans transition-all duration-300">
       {/* Sidebar do Menu */}
-      <DashboardSidebar userRole={userRole} />
+      <DashboardSidebar userRole={user.role} userName={user.nome} />
 
       {/* Área de Conteúdo Principal */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Cabeçalho */}
         <DashboardHeader
-          nomeClinica={nomeClinica}
-          statusAssinatura={statusAssinatura}
+          statusAssinatura={user.statusAssinatura}
         />
 
         {/* Corpo da página com scroll independente */}

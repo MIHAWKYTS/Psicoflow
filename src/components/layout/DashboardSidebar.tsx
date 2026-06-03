@@ -16,13 +16,37 @@ import {
   Shield,
   LogOut,
 } from "lucide-react";
+import type { UserRole } from "@prisma/client";
+
+type SidebarRole = UserRole | "admin" | "psicologo" | "psicologo_admin";
 
 interface SidebarProps {
-  userRole?: "psicologo" | "secretaria" | "admin";
+  userRole: SidebarRole;
+  userName: string;
 }
 
-export default function DashboardSidebar({ userRole = "psicologo" }: SidebarProps) {
+const roleLabels: Record<string, string> = {
+  admin: "Psicólogo(a)",
+  psicologo: "Psicólogo(a)",
+  psicologo_admin: "Psicólogo(a)",
+  secretaria: "Secretária(o)",
+};
+
+function getFirstName(name: string) {
+  return name.trim().split(/\s+/)[0] || "Usuário";
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const initials = parts.length > 1 ? [parts[0], parts[parts.length - 1]] : parts;
+  return initials.map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "U";
+}
+
+export default function DashboardSidebar({ userRole, userName }: SidebarProps) {
   const pathname = usePathname();
+  const firstName = getFirstName(userName);
+  const initials = getInitials(userName);
+  const roleLabel = roleLabels[userRole] ?? "Psicólogo(a)";
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -107,18 +131,14 @@ export default function DashboardSidebar({ userRole = "psicologo" }: SidebarProp
       <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
         <div className="flex items-center gap-3 mb-3 px-2">
           <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-700 dark:text-slate-350">
-            {userRole === "psicologo" || userRole === "admin" ? "PA" : "SC"}
+            {initials}
           </div>
           <div className="flex flex-col truncate">
             <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
-              {userRole === "psicologo" || userRole === "admin" ? "Dr. Psicólogo" : "Secretária"}
+              {firstName}
             </span>
             <span className="text-[10px] text-slate-400 font-semibold capitalize">
-              {userRole === "admin"
-                ? "Admin Global"
-                : userRole === "psicologo"
-                  ? "Administrador"
-                  : "Secretária"}
+              {roleLabel}
             </span>
           </div>
         </div>
