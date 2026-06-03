@@ -17,9 +17,8 @@ const JWT_SECRET = new TextEncoder().encode(
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Isolar totalmente requisições de API e arquivos estáticos/internos do Next
+  // 1. Isolar arquivos estáticos/internos do Next
   if (
-    pathname.startsWith("/api") || 
     pathname === "/" || 
     pathname.startsWith("/_next") || 
     pathname.includes(".")
@@ -31,14 +30,23 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute = PUBLIC_ROUTES.some((route) =>
     pathname.startsWith(route)
   );
+  const isApiRoute = pathname.startsWith("/api");
+  const isPublicApiRoute =
+    pathname.startsWith("/api/auth") || pathname.startsWith("/api/webhooks");
 
   // Obter token do cookie
   const token = request.cookies.get("psicoflow_token")?.value;
 
   // Se não estiver autenticado
   if (!token) {
-    if (isPublicRoute) {
+    if (isPublicRoute || isPublicApiRoute) {
       return NextResponse.next();
+    }
+    if (isApiRoute) {
+      return NextResponse.json(
+        { success: false, error: "Não autorizado" },
+        { status: 401 }
+      );
     }
     // Redireciona para login se tentar acessar rota protegida
     const loginUrl = new URL("/login", request.url);
@@ -71,7 +79,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(pagamentoUrl);
       }
 
-      if (!isAllowedRoute && pathname.startsWith("/api") && !pathname.startsWith("/api/auth") && !pathname.startsWith("/api/webhooks")) {
+      if (!isAllowedRoute && isApiRoute && !isPublicApiRoute) {
         return NextResponse.json(
           { success: false, error: "Assinatura inadimplente. Por favor, regularize seu pagamento para continuar usando as APIs." },
           { status: 402 }
@@ -87,7 +95,7 @@ export async function middleware(request: NextRequest) {
       );
 
       if (isBlockedRoute) {
-        if (pathname.startsWith("/api")) {
+        if (isApiRoute) {
           return NextResponse.json(
             { success: false, error: "Acesso negado. Esta funcionalidade é restrita para Psicólogos." },
             { status: 403 }
@@ -107,7 +115,7 @@ export async function middleware(request: NextRequest) {
       );
 
       if (isAdminRoute) {
-        if (pathname.startsWith("/api")) {
+        if (isApiRoute) {
           return NextResponse.json(
             { success: false, error: "Acesso negado. Apenas o administrador global pode acessar." },
             { status: 403 }
@@ -151,4 +159,3 @@ export const config = {
     "/api/:path*",
   ],
 };
-
