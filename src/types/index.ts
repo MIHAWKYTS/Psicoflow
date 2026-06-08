@@ -16,6 +16,7 @@ export interface JWTPayload {
   role: UserRole;
   statusAssinatura: StatusAssinatura;
   isActive: boolean;
+  dataFimTrial?: string; // ISO string — presente apenas quando statusAssinatura === "trial"
   iat?: number;
   exp?: number;
 }

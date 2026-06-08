@@ -3,7 +3,7 @@
 // ===========================
 
 /** Duração do período de trial em dias */
-export const TRIAL_DURATION_DAYS = 30;
+export const TRIAL_DURATION_DAYS = 15;
 
 /** Roles disponíveis no sistema */
 export const ROLES = {

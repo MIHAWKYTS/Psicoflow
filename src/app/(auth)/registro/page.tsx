@@ -64,7 +64,7 @@ export default function RegistroPage() {
           Crie a sua conta
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Inicie o seu teste gratuito de 30 dias agora mesmo. Sem cartão de crédito.
+          Inicie o seu teste gratuito de 15 dias agora mesmo. Sem cartão de crédito.
         </p>
       </div>
 

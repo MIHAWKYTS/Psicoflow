@@ -24,6 +24,7 @@ export default async function DashboardLayout({
         {/* Cabeçalho */}
         <DashboardHeader
           statusAssinatura={user.statusAssinatura}
+          dataFimTrial={user.dataFimTrial}
         />
 
         {/* Corpo da página com scroll independente */}
