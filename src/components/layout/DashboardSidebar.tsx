@@ -61,18 +61,17 @@ export default function DashboardSidebar({ userRole, userName }: SidebarProps) {
       restricted: true,
     },
     {
-      name: "Financeiro",
-      href: "/dashboard/financeiro",
-      icon: DollarSign,
-      restricted: true,
-    },
-    { name: "Engajamento", href: "/dashboard/engajamento", icon: MessageSquare },
-    {
       name: "Equipe",
       href: "/dashboard/equipe",
       icon: Users2,
       adminOnly: true,
     },
+    {
+      name: "Financeiro",
+      href: "/dashboard/financeiro",
+      icon: DollarSign,
+    },
+    { name: "Engajamento", href: "/dashboard/engajamento", icon: MessageSquare },
   ];
 
   const handleLogout = async () => {

@@ -126,6 +126,25 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    // 2.5. Bloqueio por trial expirado (checado via dataFimTrial no JWT, sem acesso ao banco)
+    if (statusAssinatura === "trial") {
+      const dataFimTrial = payload.dataFimTrial as string | undefined;
+      if (dataFimTrial && new Date(dataFimTrial) < new Date()) {
+        const isAllowedRoute = INADIMPLENTE_ALLOWED_ROUTES.some((route) =>
+          pathname.startsWith(route)
+        );
+        if (!isAllowedRoute && pathname.startsWith("/dashboard")) {
+          return NextResponse.redirect(new URL("/dashboard/pagamento", request.url));
+        }
+        if (!isAllowedRoute && isApiRoute && !isPublicApiRoute) {
+          return NextResponse.json(
+            { success: false, error: "Período de teste expirado. Assine para continuar usando o PsicoFlow." },
+            { status: 402 }
+          );
+        }
+      }
+    }
+
     // 3. Bloqueio por Inadimplência
     // Se inadimplente, só pode acessar rotas permitidas (como tela de pagamento)
     if (statusAssinatura === "inadimplente") {
