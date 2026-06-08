@@ -48,6 +48,28 @@ export function buildSessionReminderEmail(patientName: string, sessionDateText: 
   `;
 }
 
+export function buildPasswordResetEmail(nome: string, resetLink: string) {
+  return `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 480px; margin: 0 auto;">
+      <div style="background: #0ea5e9; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+        <span style="font-size: 28px; font-weight: 900; color: white;">Ψ PsicoFlow</span>
+      </div>
+      <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+        <h2 style="margin: 0 0 8px; font-size: 20px; color: #1e293b;">Redefinição de senha</h2>
+        <p style="color: #64748b; margin: 0 0 24px;">Olá, ${nome}.</p>
+        <p style="color: #475569; margin: 0 0 24px;">Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha. Este link expira em <strong>1 hora</strong>.</p>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${resetLink}"
+             style="background: #0ea5e9; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block;">
+            Redefinir minha senha
+          </a>
+        </div>
+        <p style="color: #94a3b8; font-size: 13px; margin: 0;">Se você não solicitou a redefinição, ignore este e-mail. Sua senha permanece a mesma.</p>
+      </div>
+    </div>
+  `;
+}
+
 export function buildMaterialFollowUpEmail(
   patientName: string,
   message: string,

@@ -35,6 +35,11 @@ export async function POST(req: NextRequest) {
       return errorResponse("Credenciais inválidas", 401);
     }
 
+    // Bloquear usuário desativado pelo psicologo_admin
+    if (!user.ativo) {
+      return errorResponse("Sua conta foi desativada. Entre em contato com o responsável da clínica.", 403);
+    }
+
     const token = generateToken({
       userId: user.id,
       tenantId: user.tenantId,
@@ -42,6 +47,7 @@ export async function POST(req: NextRequest) {
       email: user.email,
       role: user.role,
       statusAssinatura: user.tenant.statusAssinatura,
+      isActive: user.tenant.isActive,
     });
 
     await setAuthCookie(token);

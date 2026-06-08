@@ -7,7 +7,6 @@ import bcrypt from "bcryptjs";
 // ─── GET /api/users (Listar equipe) ───────────────────────────
 export async function GET(req: NextRequest) {
   return withAuth(async (ctx) => {
-    // Apenas psicologo e admin podem ver a equipe e gerenciar
     if (ctx.role === "secretaria") {
       return errorResponse("Acesso negado", 403);
     }
@@ -19,9 +18,10 @@ export async function GET(req: NextRequest) {
         nome: true,
         email: true,
         role: true,
-        statusAssinatura: true,
+        ativo: true,
         createdAt: true,
       },
+      orderBy: { createdAt: "asc" },
     });
 
     return successResponse(users);
@@ -31,8 +31,8 @@ export async function GET(req: NextRequest) {
 // ─── POST /api/users (Criar novo membro da equipe) ────────────
 export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
-    if (ctx.role === "secretaria") {
-      return errorResponse("Acesso negado", 403);
+    if (ctx.role !== "psicologo_admin") {
+      return errorResponse("Apenas o psicólogo administrador pode criar membros da equipe.", 403);
     }
 
     try {
@@ -43,21 +43,15 @@ export async function POST(req: NextRequest) {
         return errorResponse("Todos os campos são obrigatórios", 400);
       }
 
-      // Validar role (não pode criar outro admin global daqui)
       if (role !== "secretaria" && role !== "psicologo") {
         return errorResponse("Role inválida", 400);
       }
 
-      // Verifica se email já existe
-      const existingUser = await prisma.user.findUnique({
-        where: { email },
-      });
-
+      const existingUser = await prisma.user.findUnique({ where: { email } });
       if (existingUser) {
         return errorResponse("E-mail já está em uso", 400);
       }
 
-      // Hash da senha
       const salt = await bcrypt.genSalt(10);
       const senhaHash = await bcrypt.hash(senha, salt);
 
@@ -67,14 +61,10 @@ export async function POST(req: NextRequest) {
           email,
           senhaHash,
           role,
-          tenantId: ctx.tenantId, // Vincula ao mesmo tenant do Psicólogo logado
+          ativo: true,
+          tenantId: ctx.tenantId,
         },
-        select: {
-          id: true,
-          nome: true,
-          email: true,
-          role: true,
-        },
+        select: { id: true, nome: true, email: true, role: true, ativo: true },
       });
 
       return successResponse(newUser, "Usuário criado com sucesso", 201);
