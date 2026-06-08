@@ -7,8 +7,8 @@ export default async function ProntuariosPage() {
   if (!ctx) redirect("/login");
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
           Prontuários
         </h1>

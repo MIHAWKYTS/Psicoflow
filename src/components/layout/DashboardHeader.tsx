@@ -1,18 +1,20 @@
 "use client";
 
 import ThemeToggle from "../ThemeToggle";
-import { Bell, CreditCard, Sparkles } from "lucide-react";
+import { Bell, Sparkles, Menu } from "lucide-react";
 
 interface HeaderProps {
   nomeClinica?: string;
   statusAssinatura?: "trial" | "ativo" | "inadimplente" | "cancelado";
   dataFimTrial?: string;
+  onMenuToggle?: () => void;
 }
 
 export default function DashboardHeader({
   nomeClinica = "Minha Clínica",
   statusAssinatura = "trial",
   dataFimTrial,
+  onMenuToggle,
 }: HeaderProps) {
   const daysLeft =
     statusAssinatura === "trial" && dataFimTrial
@@ -42,9 +44,17 @@ export default function DashboardHeader({
   };
 
   return (
-    <header className="h-16 border-b border-slate-150 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-6 transition-all duration-300">
-      {/* Informações da clínica */}
+    <header className="h-16 border-b border-slate-150 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-4 md:px-6 transition-all duration-300">
+      {/* Botão hamburger (mobile) + Informações da clínica */}
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onMenuToggle}
+          className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 transition-all shadow-sm focus:outline-none"
+          aria-label="Abrir menu"
+        >
+          <Menu className="w-4 h-4" />
+        </button>
         <h1 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm md:text-base leading-none">
           {nomeClinica}
         </h1>
