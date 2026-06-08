@@ -15,6 +15,7 @@ import {
   FolderKanban,
   Shield,
   LogOut,
+  Settings,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
@@ -79,6 +80,12 @@ export default function DashboardSidebar({ userRole, userName, isOpen = false, o
       icon: DollarSign,
     },
     { name: "Engajamento", href: "/dashboard/engajamento", icon: MessageSquare },
+    {
+      name: "Configurações",
+      href: "/dashboard/configuracoes",
+      icon: Settings,
+      adminOnly: true,
+    },
   ];
 
   const handleLogout = async () => {

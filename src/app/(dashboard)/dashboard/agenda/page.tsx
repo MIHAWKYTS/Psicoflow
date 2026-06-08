@@ -92,6 +92,7 @@ export default function AgendaPage() {
 
   // Formulário de criação
   const [formPatientId, setFormPatientId] = useState("");
+  const [formDate, setFormDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [formStartTime, setFormStartTime] = useState("09:00");
   const [formEndTime, setFormEndTime] = useState("10:00");
   const [formStatus, setFormStatus] = useState<"agendada" | "realizada" | "cancelada" | "falta">("agendada");
@@ -100,6 +101,9 @@ export default function AgendaPage() {
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [reminderSending, setReminderSending] = useState(false);
   const [reminderDone, setReminderDone] = useState(false);
+  const [reminderDate, setReminderDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [reminderSessions, setReminderSessions] = useState<Session[]>([]);
+  const [reminderLoadingSessions, setReminderLoadingSessions] = useState(false);
   const [reminderProgress, setReminderProgress] = useState<{
     sent: number;
     skipped: number;
@@ -107,6 +111,11 @@ export default function AgendaPage() {
     status: string;
     error?: string;
   } | null>(null);
+
+  // WhatsApp individual
+  const [waSending, setWaSending] = useState(false);
+  const [waSuccess, setWaSuccess] = useState(false);
+  const [waError, setWaError] = useState("");
 
   // ─── CALENDÁRIO ───────────────────────────────────────────
   const monthStart = startOfMonth(currentMonth);
@@ -187,9 +196,32 @@ export default function AgendaPage() {
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const handleToday = () => setCurrentMonth(new Date());
 
+  // ─── LEMBRETES: fetch por data ────────────────────────────
+  const fetchReminderSessions = async (dateStr: string) => {
+    setReminderLoadingSessions(true);
+    try {
+      const dayStart = new Date(`${dateStr}T00:00:00`);
+      const dayEnd = new Date(`${dateStr}T23:59:59`);
+      const params = new URLSearchParams({
+        inicio: dayStart.toISOString(),
+        fim: dayEnd.toISOString(),
+      });
+      const res = await fetch(`/api/sessions?${params}`);
+      const data = await res.json();
+      setReminderSessions(
+        (data.data || []).map(normalizeSession).filter((s: Session) => s.status === "agendada")
+      );
+    } catch {
+      console.error("Erro ao buscar sessões do lembrete");
+    } finally {
+      setReminderLoadingSessions(false);
+    }
+  };
+
   // ─── SIDEBAR ─────────────────────────────────────────────
   const handleDayClick = (date: Date) => {
     setSelectedDate(date);
+    setFormDate(format(date, "yyyy-MM-dd"));
     setFormStartTime("09:00");
     setFormEndTime("10:00");
     setFormStatus("agendada");
@@ -201,6 +233,9 @@ export default function AgendaPage() {
   const handleSessionClick = (e: React.MouseEvent, session: Session) => {
     e.stopPropagation();
     setSelectedSession(session);
+    setWaSending(false);
+    setWaSuccess(false);
+    setWaError("");
     setSidebarMode("view");
     setIsSidebarOpen(true);
   };
@@ -208,15 +243,16 @@ export default function AgendaPage() {
   // ─── CRIAR AGENDAMENTO ────────────────────────────────────
   const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDate || !formPatientId) return;
+    if (!formPatientId) return;
 
     const [startH, startM] = formStartTime.split(":").map(Number);
     const [endH, endM] = formEndTime.split(":").map(Number);
 
-    const startISO = new Date(selectedDate);
+    const baseDate = new Date(`${formDate}T00:00:00`);
+    const startISO = new Date(baseDate);
     startISO.setHours(startH, startM, 0, 0);
 
-    const endISO = new Date(selectedDate);
+    const endISO = new Date(baseDate);
     endISO.setHours(endH, endM, 0, 0);
 
     setSaving(true);
@@ -311,15 +347,48 @@ export default function AgendaPage() {
 
   // ─── LEMBRETES EM MASSA ───────────────────────────────────
   const handleOpenReminderModal = () => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    setReminderDate(today);
     setReminderProgress(null);
     setReminderDone(false);
     setShowReminderModal(true);
+    fetchReminderSessions(today);
+  };
+
+  // ─── WHATSAPP INDIVIDUAL ──────────────────────────────────
+  const handleSendSingle = async () => {
+    if (!selectedSession) return;
+    setWaSending(true);
+    setWaSuccess(false);
+    setWaError("");
+    try {
+      const res = await fetch("/api/whatsapp/send-single", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: selectedSession.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setWaError(data.error || "Erro ao enviar mensagem.");
+      } else {
+        setWaSuccess(true);
+        setSelectedSession({ ...selectedSession, lembreteEnviado: true });
+      }
+    } catch {
+      setWaError("Erro de conexão. Tente novamente.");
+    } finally {
+      setWaSending(false);
+    }
   };
 
   const handleSendReminders = async () => {
     setReminderSending(true);
     try {
-      const res = await fetch("/api/whatsapp/send-reminders", { method: "POST" });
+      const res = await fetch("/api/whatsapp/send-reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: reminderDate }),
+      });
       const data = await res.json();
       if (!res.ok) {
         setReminderProgress({
@@ -679,18 +748,33 @@ export default function AgendaPage() {
           />
           <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-slate-100 dark:border-slate-800 overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-4">
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
                     <MessageSquare className="w-4 h-4" />
                   </span>
                   <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-base leading-none">
-                    Lembretes do Dia
+                    Lembretes
                   </h3>
                 </div>
                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 leading-snug">
-                  Envia uma mensagem de confirmação no WhatsApp para cada paciente agendado hoje.
+                  Envia confirmação no WhatsApp para cada paciente agendado no dia selecionado.
                 </p>
+                {/* Seletor de data */}
+                <div className="mt-3">
+                  <input
+                    type="date"
+                    min={format(new Date(), "yyyy-MM-dd")}
+                    value={reminderDate}
+                    disabled={reminderSending}
+                    onChange={(e) => {
+                      setReminderDate(e.target.value);
+                      setReminderProgress(null);
+                      fetchReminderSessions(e.target.value);
+                    }}
+                    className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all disabled:opacity-50"
+                  />
+                </div>
               </div>
               {!reminderSending && (
                 <button
@@ -703,19 +787,23 @@ export default function AgendaPage() {
             </div>
 
             <div className="p-5 space-y-4 max-h-80 overflow-y-auto">
-              {todayAgendadas.length === 0 ? (
+              {reminderLoadingSessions ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader className="w-5 h-5 text-emerald-500 animate-spin" />
+                </div>
+              ) : reminderSessions.length === 0 ? (
                 <div className="text-center py-6 space-y-2">
                   <CalendarDays className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto" />
                   <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
-                    Nenhum paciente agendado para hoje.
+                    Nenhum paciente agendado para este dia.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    {todayAgendadas.length} paciente{todayAgendadas.length > 1 ? "s" : ""} receberão a mensagem:
+                    {reminderSessions.length} paciente{reminderSessions.length > 1 ? "s" : ""} receberão a mensagem:
                   </p>
-                  {todayAgendadas.map((s) => (
+                  {reminderSessions.map((s) => (
                     <div
                       key={s.id}
                       className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-950/30 border border-slate-100 dark:border-slate-800"
@@ -816,7 +904,7 @@ export default function AgendaPage() {
                   <button
                     type="button"
                     onClick={handleSendReminders}
-                    disabled={reminderSending || todayAgendadas.length === 0}
+                    disabled={reminderSending || reminderSessions.length === 0}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {reminderSending ? (
@@ -856,7 +944,7 @@ export default function AgendaPage() {
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 leading-none">
                   {sidebarMode === "view"
                     ? "Informações clínicas e alteração de presença."
-                    : `Cadastrar sessão para o dia ${format(selectedDate!, "dd/MM/yyyy")}`}
+                    : `Cadastrar sessão para o dia ${formDate ? format(new Date(`${formDate}T00:00:00`), "dd/MM/yyyy") : ""}`}
                 </p>
               </div>
               <button
@@ -984,24 +1072,32 @@ export default function AgendaPage() {
 
                   {/* WhatsApp individual */}
                   {selectedSession.patient.telefoneWhatsapp && (
-                    <div className="pt-2">
-                      <a
-                        href={`https://api.whatsapp.com/send?phone=${selectedSession.patient.telefoneWhatsapp}&text=Ol%C3%A1%20${encodeURIComponent(
-                          selectedSession.patient.nome
-                        )}!%20Passando%20para%20confirmar%20nossa%20sess%C3%A3o%20de%20psicologia%20agendada%20para%20o%20dia%20${format(
-                          parseISO(selectedSession.dataHoraInicio),
-                          "dd/MM"
-                        )}%20%C3%A0s%20${format(
-                          parseISO(selectedSession.dataHoraInicio),
-                          "HH:mm"
-                        )}.%20At%C3%A9%20l%C3%A1!`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
-                      >
-                        <MessageSquare className="w-4.5 h-4.5" />
-                        <span>Confirmar por WhatsApp</span>
-                      </a>
+                    <div className="pt-2 space-y-2">
+                      {waError && (
+                        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          {waError}
+                        </div>
+                      )}
+                      {waSuccess ? (
+                        <div className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold text-xs rounded-xl">
+                          <CheckCircle className="w-4 h-4" />
+                          Mensagem enviada!
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleSendSingle}
+                          disabled={waSending}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          {waSending ? (
+                            <><Loader className="w-4 h-4 animate-spin" />Enviando...</>
+                          ) : (
+                            <><MessageSquare className="w-4 h-4" />Confirmar por WhatsApp</>
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1013,6 +1109,23 @@ export default function AgendaPage() {
                       {sidebarError}
                     </div>
                   )}
+
+                  {/* Data */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider block">
+                      Data da Consulta:
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-3 h-4.5 w-4.5 text-slate-450" />
+                      <input
+                        type="date"
+                        value={formDate}
+                        onChange={(e) => setFormDate(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-bold cursor-text"
+                        required
+                      />
+                    </div>
+                  </div>
 
                   {/* Paciente */}
                   <div className="space-y-2">

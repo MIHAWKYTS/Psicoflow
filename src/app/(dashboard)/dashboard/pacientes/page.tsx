@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Phone, Calendar, CreditCard, ChevronRight, X, Loader2 } from "lucide-react";
+import { Plus, Search, Phone, Calendar, CreditCard, ChevronRight, X, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
 
 type Patient = {
   id: string;
@@ -51,6 +51,26 @@ export default function PacientesPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+
+  async function handleToggleStatus(patient: Patient, e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    const novoStatus = patient.status === "ativo" ? "inativo" : "ativo";
+    const prev = patients;
+    setPatients((list) =>
+      list.map((p) => (p.id === patient.id ? { ...p, status: novoStatus } : p))
+    );
+    try {
+      const res = await fetch(`/api/patients/${patient.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: patient.nome, status: novoStatus }),
+      });
+      if (!res.ok) setPatients(prev);
+    } catch {
+      setPatients(prev);
+    }
+  }
 
   async function fetchPatients() {
     try {
@@ -216,7 +236,23 @@ export default function PacientesPage() {
                       </span>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-slate-350 group-hover:translate-x-0.5 transition-transform" />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={(e) => handleToggleStatus(patient, e)}
+                      title={patient.status === "ativo" ? "Inativar paciente" : "Ativar paciente"}
+                      className={`opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg ${
+                        patient.status === "ativo"
+                          ? "text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                          : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      {patient.status === "ativo"
+                        ? <ToggleRight className="w-5 h-5" />
+                        : <ToggleLeft className="w-5 h-5" />
+                      }
+                    </button>
+                    <ChevronRight className="w-5 h-5 text-slate-350 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
                 </div>
 
                 <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-2 text-xs text-slate-500 dark:text-slate-400">
