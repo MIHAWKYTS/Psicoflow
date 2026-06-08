@@ -7,12 +7,12 @@ import {
   LayoutDashboard,
   Calendar,
   Users,
+  Users2,
   FileText,
   DollarSign,
   MessageSquare,
   CheckSquare,
   FolderKanban,
-  Settings,
   Shield,
   LogOut,
 } from "lucide-react";
@@ -67,7 +67,12 @@ export default function DashboardSidebar({ userRole, userName }: SidebarProps) {
       restricted: true,
     },
     { name: "Engajamento", href: "/dashboard/engajamento", icon: MessageSquare },
-    { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
+    {
+      name: "Equipe",
+      href: "/dashboard/equipe",
+      icon: Users2,
+      adminOnly: true,
+    },
   ];
 
   const handleLogout = async () => {
@@ -99,10 +104,8 @@ export default function DashboardSidebar({ userRole, userName }: SidebarProps) {
       {/* Menu de Navegação */}
       <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
         {navigation.map((item) => {
-          // Esconder menus restritos se o perfil for secretária
-          if (item.restricted && userRole === "secretaria") {
-            return null;
-          }
+          if (item.restricted && userRole === "secretaria") return null;
+          if (item.adminOnly && userRole !== "psicologo_admin") return null;
 
           const isActive = pathname === item.href;
           const Icon = item.icon;
