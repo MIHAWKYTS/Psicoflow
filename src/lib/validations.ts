@@ -4,38 +4,26 @@ import { z } from "zod";
 // PsicoFlow - Schemas de Validação (Zod)
 // ===========================
 
+// ─── CPF ────────────────────────────────────────────────
 
 export function validateCPF(cpf: string): boolean {
-  // Remove formatação
   const digits = cpf.replace(/\D/g, "");
-
   if (digits.length !== 11) return false;
-
-  // Rejeita sequências repetidas
   if (/^(\d)\1{10}$/.test(digits)) return false;
 
-  // Calcula primeiro dígito verificador
-  let sum = 0;
-  for (let i = 0; i < 9; i++) {
-    sum += parseInt(digits[i]) * (10 - i);
-  }
-  let remainder = (sum * 10) % 11;
-  if (remainder === 10 || remainder === 11) remainder = 0;
-  if (remainder !== parseInt(digits[9])) return false;
+  const calc = (len: number) => {
+    let sum = 0;
+    for (let i = 0; i < len; i++) {
+      sum += parseInt(digits[i]) * (len + 1 - i);
+    }
+    const rem = (sum * 10) % 11;
+    return rem === 10 || rem === 11 ? 0 : rem;
+  };
 
-  // Calcula segundo dígito verificador
-  sum = 0;
-  for (let i = 0; i < 10; i++) {
-    sum += parseInt(digits[i]) * (11 - i);
-  }
-  remainder = (sum * 10) % 11;
-  if (remainder === 10 || remainder === 11) remainder = 0;
-  if (remainder !== parseInt(digits[10])) return false;
-
-  return true;
+  return calc(9) === parseInt(digits[9]) && calc(10) === parseInt(digits[10]);
 }
 
-// ─── Blacklist de E-mail ──────────────────────────────────────
+// ─── E-mail blacklist ────────────────────────────────────
 
 export const BLOCKED_EMAIL_DOMAINS = [
   "mailinator.com",
@@ -58,10 +46,6 @@ export const BLOCKED_EMAIL_DOMAINS = [
   "invalid.com",
 ];
 
-/**
- * Schema Zod reutilizável para e-mail com blacklist de domínios.
- * Validação é case-insensitive no domínio.
- */
 export const emailSchema = z
   .string()
   .email("E-mail inválido")
@@ -70,7 +54,7 @@ export const emailSchema = z
     return domain ? !BLOCKED_EMAIL_DOMAINS.includes(domain) : false;
   }, "Este domínio de e-mail não é permitido");
 
-// ─── Auth ───────────────────────────────────────────────────
+// ─── Auth ───────────────────────────────────────────────
 
 export const loginSchema = z.object({
   email: emailSchema,
@@ -89,10 +73,14 @@ export const registroSchema = z.object({
 
 export const patientSchema = z.object({
   nome: z.string().min(2, "Nome é obrigatório"),
-  cpf: z
-    .string()
-    .optional()
-    .refine((val) => !val || validateCPF(val), "CPF inválido"),
+  cpf: z.string().refine((val) => !val || validateCPF(val), { message: "CPF inválido" }).optional(),
+  dataNascimento: z.string().datetime().optional(),
+  responsavelLegal: z.string().optional(),
+  genero: z.string().optional(),
+  profissao: z.string().optional(),
+  estadoCivil: z.string().optional(),
+  endereco: z.string().optional(),
+  email: z.string().email("E-mail inválido").optional(),
   telefoneWhatsapp: z.string().optional(),
   status: z.enum(["ativo", "inativo"]).default("ativo"),
   frequenciaSessoes: z.enum(["semanal", "quinzenal", "mensal"]).optional(),
@@ -113,7 +101,12 @@ export const sessionSchema = z.object({
 export const clinicalRecordSchema = z.object({
   patientId: z.string().uuid("Paciente inválido"),
   sessionId: z.string().uuid("Sessão inválida").optional(),
-  conteudo: z.string().min(1, "Conteúdo é obrigatório"),
+  contratoTerapeutico: z.string().optional(),
+  anamnese: z.string().optional(),
+  avaliacaoHipotese: z.string().optional(),
+  planoTrabalho: z.string().optional(),
+  encerramento: z.string().optional(),
+  dataEncerramento: z.string().datetime().optional(),
 });
 
 // ─── Financeiro ─────────────────────────────────────────────
@@ -125,7 +118,46 @@ export const financialTransactionSchema = z.object({
   descricao: z.string().optional(),
   valor: z.number().positive("Valor deve ser positivo"),
   statusPagamento: z.enum(["pendente", "pago", "cancelado"]).default("pendente"),
-  dataVencimento: z.string().datetime("Data de vencimento inválida"),
+  dataVencimento: z.string().datetime("Data de vencimento inválida").optional(),
+});
+
+// ─── Rotina: Tarefas e Casos ───────────────────────────────
+
+export const taskSchema = z.object({
+  titulo: z.string().min(2, "Título é obrigatório"),
+  descricao: z.string().optional(),
+  status: z.enum(["pendente", "em_andamento", "concluida"]).default("pendente"),
+  patientId: z.string().uuid("Paciente inválido").optional(),
+  dataVencimento: z.string().datetime("Data de vencimento inválida").optional(),
+});
+
+export const clinicalCaseSchema = z.object({
+  titulo: z.string().min(2, "Título é obrigatório"),
+  descricao: z.string().optional(),
+  hipoteses: z.string().optional(),
+  documentosUrls: z.array(z.string().url("URL de documento inválida")).default([]),
+});
+
+// ─── Engajamento: Materiais e lembretes ────────────────────
+
+export const materialSendSchema = z.object({
+  patientId: z.string().uuid("Paciente inválido"),
+  assunto: z.string().min(3, "Assunto é obrigatório"),
+  mensagem: z.string().min(5, "Mensagem é obrigatória"),
+  links: z.array(z.string().url("Link inválido")).default([]),
+  pdfUrls: z.array(z.string().url("URL de PDF inválida")).default([]),
+  enviarAutomaticamente: z.boolean().default(false),
+});
+
+// ─── Evolução Clínica ──────────────────────────────────
+
+export const clinicalEvolutionSchema = z.object({
+  temas: z.string().min(2, "Temas são obrigatórios"),
+  intervencoes: z.string().min(2, "Intervenções são obrigatórias"),
+  respostaPaciente: z.string().optional(),
+  encaminhamentos: z.string().optional(),
+  sessionId: z.string().uuid("Sessão inválida").optional(),
+  dataHora: z.string().datetime("Data/hora inválida"),
 });
 
 // ─── Paciente Status Toggle (PATCH parcial) ──────────────────
@@ -138,6 +170,7 @@ export const patientStatusSchema = z.object({
 
 // ─── Types inferidos ────────────────────────────────────────
 
+export type ClinicalEvolutionInput = z.infer<typeof clinicalEvolutionSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegistroInput = z.infer<typeof registroSchema>;
 export type PatientInput = z.infer<typeof patientSchema>;
@@ -145,3 +178,6 @@ export type PatientStatusInput = z.infer<typeof patientStatusSchema>;
 export type SessionInput = z.infer<typeof sessionSchema>;
 export type ClinicalRecordInput = z.infer<typeof clinicalRecordSchema>;
 export type FinancialTransactionInput = z.infer<typeof financialTransactionSchema>;
+export type TaskInput = z.infer<typeof taskSchema>;
+export type ClinicalCaseInput = z.infer<typeof clinicalCaseSchema>;
+export type MaterialSendInput = z.infer<typeof materialSendSchema>;

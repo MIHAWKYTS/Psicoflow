@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
 import { clinicalRecordSchema } from "@/lib/validations";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
-import { featureFlags } from "@/lib/feature-flags";
 
 // ─── GET /api/clinical-records (Listar Prontuários de um Paciente) ───
 export async function GET(req: NextRequest) {
@@ -71,7 +70,7 @@ export async function POST(req: NextRequest) {
         return errorResponse(errorMsg, 400);
       }
 
-      const { patientId, sessionId, conteudo } = parsed.data;
+      const { patientId, sessionId, contratoTerapeutico, anamnese, avaliacaoHipotese, planoTrabalho, encerramento, dataEncerramento } = parsed.data;
 
       // Verificar se o paciente pertence ao tenant
       const patient = await prisma.patient.findFirst({
@@ -92,17 +91,17 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Feature Flag Check: Verificar se suporta anexo na infraestrutura
-      // (Por enquanto, se a feature flag estiver desligada, 'suportaAnexo' será false e 'urlAnexo' null)
-      const suportaAnexo = featureFlags.prontuarioAnexos;
-
       const record = await prisma.clinicalRecord.create({
         data: {
           tenantId: ctx.tenantId,
           patientId,
           sessionId: sessionId || null,
-          conteudo,
-          suportaAnexo,
+          contratoTerapeutico: contratoTerapeutico || null,
+          anamnese: anamnese || null,
+          avaliacaoHipotese: avaliacaoHipotese || null,
+          planoTrabalho: planoTrabalho || null,
+          encerramento: encerramento || null,
+          dataEncerramento: dataEncerramento ? new Date(dataEncerramento) : null,
           usuarioAutorId: ctx.userId,
         },
       });

@@ -81,22 +81,18 @@ function PatientCardSkeleton() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PacientesPage() {
-  // 7.1 — Estado da lista e carregamento
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Filtros
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("todos");
 
-  // 7.2 — Estado do drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
 
-  // 7.1 — Buscar pacientes reais da API com suporte a cancelamento
   const fetchPatients = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setFetchError(null);
@@ -105,38 +101,25 @@ export default function PacientesPage() {
       if (!res.ok) throw new Error("Erro ao carregar pacientes.");
       const data = await res.json();
       setPatients(data.data ?? data);
-    } catch (error: any) {
-      // 3.5 — Ignorar erros de cancelamento intencional
-      if (error.name === "AbortError") return;
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === "AbortError") return;
       setFetchError("Não foi possível carregar os pacientes. Tente novamente.");
     } finally {
-      // Se foi cancelado, podemos evitar parar o loading se preferir,
-      // mas como o componente será desmontado ou substituído, o finally roda seguro
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // 3.3 — Criar controlador
     const controller = new AbortController();
-    
-    // 3.4 — Passar o signal
     fetchPatients(controller.signal);
-    
-    // 3.6 — Cleanup
-    return () => {
-      controller.abort();
-    };
+    return () => { controller.abort(); };
   }, [fetchPatients]);
 
-  // Filtros aplicados
   const filteredPatients = patients.filter((p) => {
     const matchesSearch = p.nome.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = filterStatus === "todos" || p.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
-
-  // ─── 7.3 / 7.4 / 7.5 — Formulário de cadastro ─────────────────────────────
 
   function openDrawer() {
     setForm(EMPTY_FORM);
@@ -163,7 +146,6 @@ export default function PacientesPage() {
     return Object.keys(errors).length === 0;
   }
 
-  // 7.4 — Conectar submit ao POST /api/patients
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validateForm()) return;
@@ -179,8 +161,7 @@ export default function PacientesPage() {
       if (form.cpf) body.cpf = form.cpf.replace(/\D/g, "");
       if (form.telefoneWhatsapp) body.telefoneWhatsapp = form.telefoneWhatsapp;
       if (form.frequenciaSessoes) body.frequenciaSessoes = form.frequenciaSessoes;
-      if (form.valorSessaoPadrao)
-        body.valorSessaoPadrao = parseFloat(form.valorSessaoPadrao);
+      if (form.valorSessaoPadrao) body.valorSessaoPadrao = parseFloat(form.valorSessaoPadrao);
 
       const res = await fetch("/api/patients", {
         method: "POST",
@@ -191,12 +172,10 @@ export default function PacientesPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        // 7.5 — Exibir erros inline de validação da API
         setFormErrors({ general: json.error ?? "Erro ao cadastrar paciente." });
         return;
       }
 
-      // 7.4 — Atualizar lista após sucesso
       const newPatient: Patient = json.data ?? json;
       setPatients((prev) => [newPatient, ...prev]);
       closeDrawer();
@@ -207,14 +186,11 @@ export default function PacientesPage() {
     }
   }
 
-  // ─── 7.6 / 7.7 — Toggle Ativo/Inativo otimista ────────────────────────────
-
   async function handleToggleStatus(e: React.MouseEvent, patient: Patient) {
-    e.preventDefault(); // Impede navegação do Link pai
+    e.preventDefault();
 
     const newStatus = patient.status === "ativo" ? "inativo" : "ativo";
 
-    // Atualização otimista
     setPatients((prev) =>
       prev.map((p) => (p.id === patient.id ? { ...p, status: newStatus } : p))
     );
@@ -227,24 +203,16 @@ export default function PacientesPage() {
       });
 
       if (!res.ok) {
-        // 7.7 — Reverter em caso de erro
         setPatients((prev) =>
-          prev.map((p) =>
-            p.id === patient.id ? { ...p, status: patient.status } : p
-          )
+          prev.map((p) => (p.id === patient.id ? { ...p, status: patient.status } : p))
         );
       }
     } catch {
-      // Reverter em caso de erro de rede
       setPatients((prev) =>
-        prev.map((p) =>
-          p.id === patient.id ? { ...p, status: patient.status } : p
-        )
+        prev.map((p) => (p.id === patient.id ? { ...p, status: patient.status } : p))
       );
     }
   }
-
-  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -259,7 +227,6 @@ export default function PacientesPage() {
           </p>
         </div>
 
-        {/* 7.2 — Botão abre drawer */}
         <button
           type="button"
           id="btn-cadastrar-paciente"
@@ -271,7 +238,7 @@ export default function PacientesPage() {
         </button>
       </div>
 
-      {/* Controles de filtro */}
+      {/* Filtros */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
@@ -280,13 +247,13 @@ export default function PacientesPage() {
             placeholder="Buscar por nome..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
+            className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
           />
         </div>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="w-full sm:w-44 px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer"
+          className="w-full sm:w-44 px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer"
         >
           <option value="todos">Todos Status</option>
           <option value="ativo">Ativos</option>
@@ -297,7 +264,6 @@ export default function PacientesPage() {
       {/* Grid de Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
-          // 7.1 — Skeleton de carregamento
           Array.from({ length: 6 }).map((_, i) => <PatientCardSkeleton key={i} />)
         ) : fetchError ? (
           <div className="col-span-full bg-red-50 dark:bg-red-950/20 rounded-2xl border border-red-100 dark:border-red-900/30 p-8 text-center text-red-500">
@@ -310,7 +276,6 @@ export default function PacientesPage() {
                 href={`/dashboard/pacientes/${patient.id}`}
                 className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between block"
               >
-                {/* Header do card */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold text-base shrink-0">
@@ -334,7 +299,6 @@ export default function PacientesPage() {
                   <ChevronRight className="w-5 h-5 text-slate-350 group-hover:translate-x-0.5 transition-transform shrink-0" />
                 </div>
 
-                {/* Informações */}
                 <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-2 text-xs text-slate-500 dark:text-slate-400">
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4 text-slate-400 shrink-0" />
@@ -363,7 +327,7 @@ export default function PacientesPage() {
                 </div>
               </Link>
 
-              {/* 7.6 — Botão toggle Ativo/Inativo */}
+              {/* Botão toggle Ativo/Inativo */}
               <button
                 type="button"
                 title={patient.status === "ativo" ? "Desativar paciente" : "Ativar paciente"}
@@ -389,7 +353,6 @@ export default function PacientesPage() {
         )}
       </div>
 
-      {/* ─── 7.2 / 7.3 — Drawer de Cadastro ─────────────────────────────── */}
       {/* Overlay */}
       {drawerOpen && (
         <div
@@ -399,7 +362,7 @@ export default function PacientesPage() {
         />
       )}
 
-      {/* Painel do Drawer */}
+      {/* Drawer de Cadastro */}
       <div
         className={`fixed top-0 right-0 h-full w-full sm:w-[440px] bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${
           drawerOpen ? "translate-x-0" : "translate-x-full"
@@ -408,7 +371,7 @@ export default function PacientesPage() {
         role="dialog"
         aria-modal="true"
       >
-        {/* Header do drawer */}
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800">
           <div>
             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
@@ -434,19 +397,14 @@ export default function PacientesPage() {
           className="flex-1 overflow-y-auto px-6 py-6 space-y-5"
           noValidate
         >
-          {/* Erro geral */}
           {formErrors.general && (
             <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 text-sm">
               {formErrors.general}
             </div>
           )}
 
-          {/* Nome */}
           <div className="space-y-1.5">
-            <label
-              htmlFor="patient-nome"
-              className="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-            >
+            <label htmlFor="patient-nome" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
               Nome completo <span className="text-red-500">*</span>
             </label>
             <input
@@ -456,23 +414,14 @@ export default function PacientesPage() {
               value={form.nome}
               onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
               className={`w-full px-4 py-2.5 text-sm rounded-xl border bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400 ${
-                formErrors.nome
-                  ? "border-red-400 dark:border-red-600"
-                  : "border-slate-200 dark:border-slate-800"
+                formErrors.nome ? "border-red-400 dark:border-red-600" : "border-slate-200 dark:border-slate-800"
               }`}
             />
-            {/* 7.5 — Erro inline */}
-            {formErrors.nome && (
-              <p className="text-xs text-red-500">{formErrors.nome}</p>
-            )}
+            {formErrors.nome && <p className="text-xs text-red-500">{formErrors.nome}</p>}
           </div>
 
-          {/* CPF — 7.3 usa CpfInput */}
           <div className="space-y-1.5">
-            <label
-              htmlFor="patient-cpf"
-              className="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-            >
+            <label htmlFor="patient-cpf" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
               CPF <span className="text-slate-400 font-normal">(opcional)</span>
             </label>
             <CpfInput
@@ -480,17 +429,11 @@ export default function PacientesPage() {
               value={form.cpf}
               onChange={(val) => setForm((f) => ({ ...f, cpf: val }))}
             />
-            {formErrors.cpf && (
-              <p className="text-xs text-red-500">{formErrors.cpf}</p>
-            )}
+            {formErrors.cpf && <p className="text-xs text-red-500">{formErrors.cpf}</p>}
           </div>
 
-          {/* Telefone WhatsApp */}
           <div className="space-y-1.5">
-            <label
-              htmlFor="patient-telefone"
-              className="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-            >
+            <label htmlFor="patient-telefone" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
               Telefone WhatsApp
             </label>
             <input
@@ -498,30 +441,19 @@ export default function PacientesPage() {
               type="tel"
               placeholder="(11) 98765-4321"
               value={form.telefoneWhatsapp}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, telefoneWhatsapp: e.target.value }))
-              }
+              onChange={(e) => setForm((f) => ({ ...f, telefoneWhatsapp: e.target.value }))}
               className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
             />
           </div>
 
-          {/* Frequência */}
           <div className="space-y-1.5">
-            <label
-              htmlFor="patient-frequencia"
-              className="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-            >
+            <label htmlFor="patient-frequencia" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
               Frequência de sessões
             </label>
             <select
               id="patient-frequencia"
               value={form.frequenciaSessoes}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  frequenciaSessoes: e.target.value as FormData["frequenciaSessoes"],
-                }))
-              }
+              onChange={(e) => setForm((f) => ({ ...f, frequenciaSessoes: e.target.value as FormData["frequenciaSessoes"] }))}
               className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer"
             >
               <option value="">Selecionar frequência...</option>
@@ -531,12 +463,8 @@ export default function PacientesPage() {
             </select>
           </div>
 
-          {/* Valor padrão */}
           <div className="space-y-1.5">
-            <label
-              htmlFor="patient-valor"
-              className="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-            >
+            <label htmlFor="patient-valor" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
               Valor padrão da sessão (R$)
             </label>
             <input
@@ -546,37 +474,22 @@ export default function PacientesPage() {
               step="0.01"
               placeholder="Ex: 150.00"
               value={form.valorSessaoPadrao}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, valorSessaoPadrao: e.target.value }))
-              }
+              onChange={(e) => setForm((f) => ({ ...f, valorSessaoPadrao: e.target.value }))}
               className={`w-full px-4 py-2.5 text-sm rounded-xl border bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400 ${
-                formErrors.valorSessaoPadrao
-                  ? "border-red-400 dark:border-red-600"
-                  : "border-slate-200 dark:border-slate-800"
+                formErrors.valorSessaoPadrao ? "border-red-400 dark:border-red-600" : "border-slate-200 dark:border-slate-800"
               }`}
             />
-            {formErrors.valorSessaoPadrao && (
-              <p className="text-xs text-red-500">{formErrors.valorSessaoPadrao}</p>
-            )}
+            {formErrors.valorSessaoPadrao && <p className="text-xs text-red-500">{formErrors.valorSessaoPadrao}</p>}
           </div>
 
-          {/* Status */}
           <div className="space-y-1.5">
-            <label
-              htmlFor="patient-status"
-              className="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-            >
+            <label htmlFor="patient-status" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
               Status inicial
             </label>
             <select
               id="patient-status"
               value={form.status}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  status: e.target.value as "ativo" | "inativo",
-                }))
-              }
+              onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as "ativo" | "inativo" }))}
               className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer"
             >
               <option value="ativo">Ativo</option>
@@ -585,7 +498,7 @@ export default function PacientesPage() {
           </div>
         </form>
 
-        {/* Rodapé do Drawer */}
+        {/* Rodapé */}
         <div className="px-6 py-5 border-t border-slate-100 dark:border-slate-800 flex gap-3">
           <button
             type="button"

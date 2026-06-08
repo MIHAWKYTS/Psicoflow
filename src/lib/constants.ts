@@ -7,7 +7,8 @@ export const TRIAL_DURATION_DAYS = 30;
 
 /** Roles disponíveis no sistema */
 export const ROLES = {
-  PSICOLOGO_ADMIN: "psicologo_admin",
+  ADMIN: "admin",
+  PSICOLOGO: "psicologo",
   SECRETARIA: "secretaria",
 } as const;
 
@@ -39,6 +40,9 @@ export const PUBLIC_ROUTES = [
   "/login",
   "/registro",
   "/esqueci-senha",
+  "/resetar-senha",
+  "/suspensao",
+  "/admin/login",
 ] as const;
 
 /** Rotas que NÃO são bloqueadas por inadimplência */
@@ -49,6 +53,12 @@ export const INADIMPLENTE_ALLOWED_ROUTES = [
 
 /** Rotas bloqueadas para secretária */
 export const SECRETARIA_BLOCKED_ROUTES = [
-  "/dashboard/financeiro",
   "/dashboard/prontuarios",
+  "/api/clinical-records",
+] as const;
+
+/** Rotas bloqueadas para psicólogos e secretárias (apenas Admin) */
+export const ADMIN_ONLY_ROUTES = [
+  "/admin",
+  "/api/admin",
 ] as const;

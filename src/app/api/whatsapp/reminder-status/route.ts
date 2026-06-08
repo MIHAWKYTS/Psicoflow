@@ -1,35 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { reminderJobs } from "@/app/api/whatsapp/send-reminders/route";
+import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/context";
+import { successResponse } from "@/lib/api-helpers";
+import { getJob } from "@/lib/reminder-jobs";
 
-// ─── GET /api/whatsapp/reminder-status?jobId=<id> ────────────────────────────
+// ─── GET /api/whatsapp/reminder-status?jobId=<id> ────────────
 export async function GET(req: NextRequest) {
-  // 6.2 — Aceitar jobId como query param
-  const { searchParams } = new URL(req.url);
-  const jobId = searchParams.get("jobId");
+  return withAuth(async () => {
+    const jobId = new URL(req.url).searchParams.get("jobId") ?? "";
+    const job = getJob(jobId);
 
-  if (!jobId) {
-    return NextResponse.json(
-      { error: "Parâmetro jobId é obrigatório." },
-      { status: 400 }
-    );
-  }
+    if (!job) {
+      return successResponse({ total: 0, sent: 0, skipped: 0, status: "error", error: "Job não encontrado ou expirado." });
+    }
 
-  // 6.3 — Retornar 404 se o job não for encontrado
-  const job = reminderJobs.get(jobId);
-  if (!job) {
-    return NextResponse.json(
-      { error: "Job não encontrado. Pode ter expirado ou o servidor foi reiniciado." },
-      { status: 404 }
-    );
-  }
-
-  // 6.2 — Retornar o estado atual do job
-  return NextResponse.json({
-    jobId,
-    total: job.total,
-    sent: job.sent,
-    skipped: job.skipped,
-    status: job.status,
-    ...(job.errorMessage ? { errorMessage: job.errorMessage } : {}),
+    return successResponse(job);
   });
 }

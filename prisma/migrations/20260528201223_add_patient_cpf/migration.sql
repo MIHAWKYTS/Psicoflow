@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "patients" ADD COLUMN     "cpf" TEXT;
+ALTER TABLE "patients" ADD COLUMN "cpf" TEXT;

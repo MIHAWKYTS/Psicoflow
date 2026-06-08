@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -16,59 +16,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-// Mock das informações de um paciente para renderização visual
-const MOCK_PATIENT = {
-  id: "p1",
-  nome: "Ana Beatriz Silva",
-  telefoneWhatsapp: "(11) 98765-4321",
-  status: "ativo",
-  frequenciaSessoes: "semanal",
-  valorSessaoPadrao: 150.00,
-  email: "anabeatriz@email.com",
-  nascimento: "1994-08-12",
-};
-
-// Mock de Prontuários Clinicos
-const MOCK_CLINICAL_RECORDS = [
-  {
-    id: "cr1",
-    conteudo: "Paciente relatou melhora significativa na ansiedade após adotar técnicas cognitivas de respiração discutidas na sessão passada. Conversamos sobre gatilhos profissionais.",
-    createdAt: "2026-05-15T14:30:00Z",
-    autor: "Dr. Psicólogo",
-  },
-  {
-    id: "cr2",
-    conteudo: "Primeira sessão de anamnese. Coleta de dados gerais. Paciente apresenta queixas recorrentes de insônia e estresse elevado devido à sobrecarga de trabalho.",
-    createdAt: "2026-05-08T09:00:00Z",
-    autor: "Dr. Psicólogo",
-  },
-];
-
-// Mock do Histórico Financeiro
-const MOCK_FINANCIALS = [
-  {
-    id: "f1",
-    descricao: "Sessão de Psicoterapia - Quarta-feira",
-    valor: 150.00,
-    dataVencimento: "2026-05-15",
-    status: "pago",
-  },
-  {
-    id: "f2",
-    descricao: "Sessão de Psicoterapia - Quarta-feira",
-    valor: 150.00,
-    dataVencimento: "2026-05-08",
-    status: "pago",
-  },
-  {
-    id: "f3",
-    descricao: "Sessão de Psicoterapia - Quarta-feira",
-    valor: 150.00,
-    dataVencimento: "2026-05-22",
-    status: "pendente",
-  },
-];
-
 export default function PacientePerfilPage({
   params,
 }: {
@@ -78,12 +25,29 @@ export default function PacientePerfilPage({
   const [activeTab, setActiveTab] = useState<"dados" | "financeiro" | "prontuario">("dados");
 
   // Configuração rápida da role para simulação de LGPD
-  // Em produção, isso virá dos headers ou do contexto de autenticação do back-end
   const [userRole, setUserRole] = useState<"psicologo_admin" | "secretaria">("psicologo_admin");
 
-  const [patient, setPatient] = useState(MOCK_PATIENT);
-  const [records, setRecords] = useState(MOCK_CLINICAL_RECORDS);
-  const [financials, setFinancials] = useState(MOCK_FINANCIALS);
+  const [patient, setPatient] = useState<any>(null);
+  const [records, setRecords] = useState<any[]>([]);
+  const [financials, setFinancials] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch(`/api/patients/${id}`);
+        if (res.ok) {
+          const resData = await res.json();
+          setPatient(resData.data || null);
+        }
+      } catch (err) {
+        console.error("Erro ao buscar detalhes do paciente", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [id]);
   
   const [newRecordContent, setNewRecordContent] = useState("");
   const [newFinancialDesc, setNewFinancialDesc] = useState("");
@@ -126,6 +90,14 @@ export default function PacientePerfilPage({
     setNewFinancialDesc("");
     alert("Lançamento financeiro pendente registrado!");
   };
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500">Carregando dados do paciente...</div>;
+  }
+
+  if (!patient) {
+    return <div className="p-8 text-center text-rose-500">Paciente não encontrado.</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -231,7 +203,7 @@ export default function PacientePerfilPage({
                   type="text"
                   value={patient.nome}
                   onChange={(e) => setPatient({ ...patient, nome: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
               </div>
 
@@ -243,7 +215,7 @@ export default function PacientePerfilPage({
                   type="text"
                   value={patient.telefoneWhatsapp}
                   onChange={(e) => setPatient({ ...patient, telefoneWhatsapp: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
               </div>
 
@@ -255,7 +227,7 @@ export default function PacientePerfilPage({
                   type="email"
                   value={patient.email}
                   onChange={(e) => setPatient({ ...patient, email: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
               </div>
 
@@ -267,7 +239,7 @@ export default function PacientePerfilPage({
                   type="date"
                   value={patient.nascimento}
                   onChange={(e) => setPatient({ ...patient, nascimento: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
               </div>
 
@@ -278,7 +250,7 @@ export default function PacientePerfilPage({
                 <select
                   value={patient.frequenciaSessoes}
                   onChange={(e) => setPatient({ ...patient, frequenciaSessoes: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 >
                   <option value="semanal">Semanal</option>
                   <option value="quinzenal">Quinzenal</option>
@@ -296,7 +268,7 @@ export default function PacientePerfilPage({
                     type="number"
                     value={patient.valorSessaoPadrao}
                     onChange={(e) => setPatient({ ...patient, valorSessaoPadrao: parseFloat(e.target.value) || 0 })}
-                    className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                   />
                 </div>
               </div>
@@ -324,7 +296,7 @@ export default function PacientePerfilPage({
                     placeholder="Sessão Extra, Consulta, etc..."
                     value={newFinancialDesc}
                     onChange={(e) => setNewFinancialDesc(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-250 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   />
                 </div>
                 <div className="w-full md:w-40 space-y-1.5">
@@ -333,7 +305,7 @@ export default function PacientePerfilPage({
                     type="number"
                     value={newFinancialVal}
                     onChange={(e) => setNewFinancialVal(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-250 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   />
                 </div>
                 <button
@@ -424,7 +396,7 @@ export default function PacientePerfilPage({
                     rows={4}
                     value={newRecordContent}
                     onChange={(e) => setNewRecordContent(e.target.value)}
-                    className="w-full p-3.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
+                    className="w-full p-3.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
                   />
                   <button
                     type="submit"

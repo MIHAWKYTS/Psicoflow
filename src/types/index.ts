@@ -11,9 +11,11 @@ import type { UserRole, StatusAssinatura } from "@prisma/client";
 export interface JWTPayload {
   userId: string;
   tenantId: string;
+  nome: string;
   email: string;
   role: UserRole;
   statusAssinatura: StatusAssinatura;
+  isActive: boolean;
   iat?: number;
   exp?: number;
 }

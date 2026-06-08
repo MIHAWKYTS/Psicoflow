@@ -149,7 +149,7 @@ const INITIAL_SESSIONS: SessionMock[] = [
 
 export default function AgendaPage() {
   // ─── ESTADOS PRINCIPAIS ────────────────────────────────────
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date(2026, 4, 20)); // Maio 2026
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [sessions, setSessions] = useState<SessionMock[]>(INITIAL_SESSIONS);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("todos");
@@ -210,7 +210,7 @@ export default function AgendaPage() {
   // Navegação de Meses
   const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-  const handleToday = () => setCurrentMonth(new Date(2026, 4, 20));
+  const handleToday = () => setCurrentMonth(new Date());
 
   // ─── AÇÕES DA SIDEBAR / AGENDA ─────────────────────────────
   
@@ -435,7 +435,7 @@ export default function AgendaPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* 8.1 — Botão Disparar Lembretes do Dia */}
+          {/* Botão Disparar Lembretes do Dia */}
           <button
             id="btn-disparar-lembretes"
             type="button"
@@ -452,7 +452,7 @@ export default function AgendaPage() {
           </button>
 
           <button
-            onClick={() => handleDayClick(new Date(2026, 4, 20))}
+            onClick={() => handleDayClick(new Date())}
             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-500 hover:bg-sky-600 dark:bg-sky-500 dark:hover:bg-sky-600 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-sky-500/20 active:scale-[0.98] cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -488,7 +488,7 @@ export default function AgendaPage() {
 
           <button
             onClick={handleToday}
-            className="px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-650 dark:text-slate-350 transition-all cursor-pointer"
+            className="px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-white transition-all cursor-pointer"
           >
             Hoje
           </button>
@@ -504,7 +504,7 @@ export default function AgendaPage() {
               placeholder="Buscar por paciente..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/30 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
+              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/30 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
             />
           </div>
 
@@ -514,7 +514,7 @@ export default function AgendaPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full pl-10 pr-8 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/30 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all appearance-none cursor-pointer font-semibold"
+              className="w-full pl-10 pr-8 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/30 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all appearance-none cursor-pointer font-semibold"
             >
               <option value="todos">Todos Status</option>
               <option value="agendada">Agendadas</option>
@@ -783,7 +783,7 @@ export default function AgendaPage() {
                       <select
                         value={formPatientId}
                         onChange={(e) => setFormPatientId(e.target.value)}
-                        className="w-full pl-10 pr-10 py-3 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 appearance-none font-semibold cursor-pointer"
+                        className="w-full pl-10 pr-10 py-3 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 appearance-none font-semibold cursor-pointer"
                       >
                         {MOCK_PATIENTS.map((p) => (
                           <option key={p.id} value={p.id}>
@@ -807,7 +807,7 @@ export default function AgendaPage() {
                           type="time"
                           value={formStartTime}
                           onChange={(e) => setFormStartTime(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-bold cursor-text"
+                          className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-bold cursor-text"
                           required
                         />
                       </div>
@@ -822,7 +822,7 @@ export default function AgendaPage() {
                           type="time"
                           value={formEndTime}
                           onChange={(e) => setFormEndTime(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-bold cursor-text"
+                          className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-bold cursor-text"
                           required
                         />
                       </div>
@@ -865,7 +865,7 @@ export default function AgendaPage() {
                       onChange={(e) => setFormNotes(e.target.value)}
                       rows={4}
                       placeholder="Ex: Queixa recorrente de ansiedade no trabalho, foco na discussão sobre limites..."
-                      className="w-full p-4 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-medium placeholder:text-slate-400 resize-none"
+                      className="w-full p-4 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-medium placeholder:text-slate-400 resize-none"
                     />
                   </div>
 

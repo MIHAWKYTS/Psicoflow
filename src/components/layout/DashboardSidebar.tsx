@@ -7,26 +7,53 @@ import {
   LayoutDashboard,
   Calendar,
   Users,
+  Users2,
   FileText,
   DollarSign,
   MessageSquare,
-  Settings,
+  CheckSquare,
+  FolderKanban,
   Shield,
   LogOut,
-  Menu,
 } from "lucide-react";
+import type { UserRole } from "@prisma/client";
+
+type SidebarRole = UserRole | "admin" | "psicologo" | "psicologo_admin";
 
 interface SidebarProps {
-  userRole?: "psicologo_admin" | "secretaria";
+  userRole: SidebarRole;
+  userName: string;
 }
 
-export default function DashboardSidebar({ userRole = "psicologo_admin" }: SidebarProps) {
+const roleLabels: Record<string, string> = {
+  admin: "Psicólogo(a)",
+  psicologo: "Psicólogo(a)",
+  psicologo_admin: "Psicólogo(a)",
+  secretaria: "Secretária(o)",
+};
+
+function getFirstName(name: string) {
+  return name.trim().split(/\s+/)[0] || "Usuário";
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const initials = parts.length > 1 ? [parts[0], parts[parts.length - 1]] : parts;
+  return initials.map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "U";
+}
+
+export default function DashboardSidebar({ userRole, userName }: SidebarProps) {
   const pathname = usePathname();
+  const firstName = getFirstName(userName);
+  const initials = getInitials(userName);
+  const roleLabel = roleLabels[userRole] ?? "Psicólogo(a)";
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Agenda", href: "/dashboard/agenda", icon: Calendar },
     { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
+    { name: "Rotina", href: "/dashboard/rotina", icon: CheckSquare },
+    { name: "Casos", href: "/dashboard/casos", icon: FolderKanban },
     {
       name: "Prontuários",
       href: "/dashboard/prontuarios",
@@ -39,8 +66,13 @@ export default function DashboardSidebar({ userRole = "psicologo_admin" }: Sideb
       icon: DollarSign,
       restricted: true,
     },
-    { name: "WhatsApp", href: "/dashboard/whatsapp", icon: MessageSquare },
-    { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
+    { name: "Engajamento", href: "/dashboard/engajamento", icon: MessageSquare },
+    {
+      name: "Equipe",
+      href: "/dashboard/equipe",
+      icon: Users2,
+      adminOnly: true,
+    },
   ];
 
   const handleLogout = async () => {
@@ -72,10 +104,8 @@ export default function DashboardSidebar({ userRole = "psicologo_admin" }: Sideb
       {/* Menu de Navegação */}
       <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
         {navigation.map((item) => {
-          // Esconder menus restritos se o perfil for secretária
-          if (item.restricted && userRole === "secretaria") {
-            return null;
-          }
+          if (item.restricted && userRole === "secretaria") return null;
+          if (item.adminOnly && userRole !== "psicologo_admin") return null;
 
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -104,14 +134,14 @@ export default function DashboardSidebar({ userRole = "psicologo_admin" }: Sideb
       <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
         <div className="flex items-center gap-3 mb-3 px-2">
           <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-700 dark:text-slate-350">
-            {userRole === "psicologo_admin" ? "PA" : "SC"}
+            {initials}
           </div>
           <div className="flex flex-col truncate">
             <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
-              {userRole === "psicologo_admin" ? "Dr. Psicólogo" : "Secretária"}
+              {firstName}
             </span>
             <span className="text-[10px] text-slate-400 font-semibold capitalize">
-              {userRole === "psicologo_admin" ? "Administrador" : "Secretária"}
+              {roleLabel}
             </span>
           </div>
         </div>
