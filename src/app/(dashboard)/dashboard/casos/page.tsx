@@ -77,20 +77,20 @@ export default function CasosPage() {
           value={titulo}
           onChange={(e) => setTitulo(e.target.value)}
           placeholder="Título do caso"
-          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm"
+          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
           required
         />
         <input
           value={descricao}
           onChange={(e) => setDescricao(e.target.value)}
           placeholder="Descrição resumida"
-          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm"
+          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
         />
         <input
           value={hipoteses}
           onChange={(e) => setHipoteses(e.target.value)}
           placeholder="Hipóteses diagnósticas"
-          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm"
+          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
         />
         <button className="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold md:col-span-3">
           Criar caso
@@ -104,7 +104,7 @@ export default function CasosPage() {
         <select
           value={selectedCaseId}
           onChange={(e) => setSelectedCaseId(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm"
+          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
           required
         >
           <option value="">Selecione um caso</option>
@@ -118,7 +118,7 @@ export default function CasosPage() {
           value={documentUrl}
           onChange={(e) => setDocumentUrl(e.target.value)}
           placeholder="URL do documento"
-          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm"
+          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
           required
         />
         <button className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold">

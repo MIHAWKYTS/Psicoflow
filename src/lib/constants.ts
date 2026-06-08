@@ -40,6 +40,9 @@ export const PUBLIC_ROUTES = [
   "/login",
   "/registro",
   "/esqueci-senha",
+  "/resetar-senha",
+  "/suspensao",
+  "/admin/login",
 ] as const;
 
 /** Rotas que NÃO são bloqueadas por inadimplência */
@@ -50,10 +53,8 @@ export const INADIMPLENTE_ALLOWED_ROUTES = [
 
 /** Rotas bloqueadas para secretária */
 export const SECRETARIA_BLOCKED_ROUTES = [
-  "/dashboard/financeiro/resumo",
   "/dashboard/prontuarios",
   "/api/clinical-records",
-  "/api/financial/resumo",
 ] as const;
 
 /** Rotas bloqueadas para psicólogos e secretárias (apenas Admin) */
