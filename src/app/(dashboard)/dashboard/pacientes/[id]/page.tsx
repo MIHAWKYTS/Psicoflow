@@ -8,12 +8,14 @@ import {
   CreditCard,
   FileText,
   Lock,
-  Plus,
   Calendar,
-  DollarSign,
   AlertTriangle,
-  Phone,
   ShieldCheck,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  ExternalLink,
+  Plus,
 } from "lucide-react";
 
 export default function PacientePerfilPage({
@@ -24,71 +26,155 @@ export default function PacientePerfilPage({
   const { id } = use(params);
   const [activeTab, setActiveTab] = useState<"dados" | "financeiro" | "prontuario">("dados");
 
-  // Configuração rápida da role para simulação de LGPD
-  const [userRole, setUserRole] = useState<"psicologo_admin" | "secretaria">("psicologo_admin");
-
+  const [currentUser, setCurrentUser] = useState<{ nome: string; role: string } | null>(null);
   const [patient, setPatient] = useState<any>(null);
-  const [records, setRecords] = useState<any[]>([]);
   const [financials, setFinancials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [financialLoading, setFinancialLoading] = useState(false);
 
+  // Fetch patient + authenticated user in parallel
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch(`/api/patients/${id}`);
-        if (res.ok) {
-          const resData = await res.json();
-          setPatient(resData.data || null);
+        const [patientRes, meRes] = await Promise.all([
+          fetch(`/api/patients/${id}`),
+          fetch("/api/auth/me"),
+        ]);
+        if (patientRes.ok) {
+          const resData = await patientRes.json();
+          const pat = resData.data || null;
+          setPatient(pat);
+          if (pat?.valorSessaoPadrao != null) {
+            setNewFinancialVal(String(pat.valorSessaoPadrao));
+          }
+        }
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          setCurrentUser({
+            nome: meData.data?.nome ?? "",
+            role: meData.data?.role ?? "",
+          });
         }
       } catch (err) {
-        console.error("Erro ao buscar detalhes do paciente", err);
+        console.error("Erro ao buscar dados", err);
       } finally {
         setLoading(false);
       }
     }
     fetchData();
   }, [id]);
-  
-  const [newRecordContent, setNewRecordContent] = useState("");
+
+  // Fetch patient financial transactions on mount
+  useEffect(() => {
+    async function fetchFinancials() {
+      setFinancialLoading(true);
+      try {
+        const res = await fetch(`/api/financial?patientId=${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setFinancials(data.data ?? []);
+        }
+      } catch (err) {
+        console.error("Erro ao buscar financeiro", err);
+      } finally {
+        setFinancialLoading(false);
+      }
+    }
+    fetchFinancials();
+  }, [id]);
+
+  // Dados pessoais
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Formulário financeiro
   const [newFinancialDesc, setNewFinancialDesc] = useState("");
-  const [newFinancialVal, setNewFinancialVal] = useState("150");
+  const [newFinancialVal, setNewFinancialVal] = useState("0");
+  const [newFinancialTipo, setNewFinancialTipo] = useState<"receita" | "despesa">("receita");
+  const [newFinancialCategoria, setNewFinancialCategoria] = useState<"consultorio" | "pessoal">("consultorio");
+  const [newFinancialDataVenc, setNewFinancialDataVenc] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [financialSaving, setFinancialSaving] = useState(false);
+  const [financialError, setFinancialError] = useState("");
 
-  const handleSavePatient = (e: React.FormEvent) => {
+  const handleSavePatient = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Dados pessoais atualizados com sucesso! (Simulado)");
+    setSaving(true);
+    setSaveError("");
+    setSaveSuccess(false);
+
+    try {
+      const body: Record<string, unknown> = {
+        nome: patient.nome,
+        status: patient.status,
+      };
+      if (patient.telefoneWhatsapp) body.telefoneWhatsapp = patient.telefoneWhatsapp;
+      if (patient.email) body.email = patient.email;
+      if (patient.cpf) body.cpf = patient.cpf;
+      if (patient.frequenciaSessoes) body.frequenciaSessoes = patient.frequenciaSessoes;
+      if (patient.valorSessaoPadrao != null) body.valorSessaoPadrao = Number(patient.valorSessaoPadrao);
+
+      const res = await fetch(`/api/patients/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setSaveError(data.error || "Erro ao salvar alterações.");
+        return;
+      }
+
+      setPatient(data.data);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch {
+      setSaveError("Erro de conexão. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleAddRecord = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newRecordContent.trim()) return;
-
-    const newRecord = {
-      id: `cr-${Date.now()}`,
-      conteudo: newRecordContent,
-      createdAt: new Date().toISOString(),
-      autor: "Dr. Psicólogo",
-    };
-
-    setRecords([newRecord, ...records]);
-    setNewRecordContent("");
-    alert("Evolução clínica registrada com sucesso!");
-  };
-
-  const handleAddFinancial = (e: React.FormEvent) => {
+  const handleAddFinancial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFinancialDesc.trim() || !newFinancialVal) return;
 
-    const newTransaction = {
-      id: `f-${Date.now()}`,
-      descricao: newFinancialDesc,
-      valor: parseFloat(newFinancialVal),
-      dataVencimento: new Date().toISOString().split("T")[0],
-      status: "pendente",
-    };
+    setFinancialSaving(true);
+    setFinancialError("");
+    try {
+      const res = await fetch("/api/financial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId: id,
+          tipo: newFinancialTipo,
+          categoria: newFinancialCategoria,
+          descricao: newFinancialDesc,
+          valor: parseFloat(newFinancialVal),
+          statusPagamento: "pendente",
+          dataVencimento: newFinancialDataVenc,
+        }),
+      });
 
-    setFinancials([newTransaction, ...financials]);
-    setNewFinancialDesc("");
-    alert("Lançamento financeiro pendente registrado!");
+      const data = await res.json();
+      if (!res.ok) {
+        setFinancialError(data.error || "Erro ao registrar lançamento.");
+        return;
+      }
+
+      setFinancials((prev) => [data.data, ...prev]);
+      setNewFinancialDesc("");
+      setNewFinancialVal(String(patient?.valorSessaoPadrao ?? 0));
+      setNewFinancialDataVenc(new Date().toISOString().split("T")[0]);
+    } catch {
+      setFinancialError("Erro de conexão. Tente novamente.");
+    } finally {
+      setFinancialSaving(false);
+    }
   };
 
   if (loading) {
@@ -98,6 +184,8 @@ export default function PacientePerfilPage({
   if (!patient) {
     return <div className="p-8 text-center text-rose-500">Paciente não encontrado.</div>;
   }
+
+  const userRole = currentUser?.role ?? "";
 
   return (
     <div className="space-y-6">
@@ -118,31 +206,6 @@ export default function PacientePerfilPage({
               Prontuário e Ficha de Acompanhamento
             </p>
           </div>
-        </div>
-
-        {/* Simulador de Role para demonstração da LGPD */}
-        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl self-start border border-slate-200/50 dark:border-slate-800">
-          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase px-2">Visualizar como:</span>
-          <button
-            onClick={() => setUserRole("psicologo_admin")}
-            className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-              userRole === "psicologo_admin"
-                ? "bg-white dark:bg-slate-800 text-sky-500 shadow-sm"
-                : "text-slate-550 dark:text-slate-400"
-            }`}
-          >
-            Psicólogo
-          </button>
-          <button
-            onClick={() => setUserRole("secretaria")}
-            className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-              userRole === "secretaria"
-                ? "bg-white dark:bg-slate-800 text-rose-500 shadow-sm"
-                : "text-slate-550 dark:text-slate-400"
-            }`}
-          >
-            Secretária
-          </button>
         </div>
       </div>
 
@@ -190,7 +253,7 @@ export default function PacientePerfilPage({
 
       {/* Conteúdo da Aba Ativa */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
-        
+
         {/* ABA: DADOS PESSOAIS */}
         {activeTab === "dados" && (
           <form onSubmit={handleSavePatient} className="space-y-6">
@@ -274,11 +337,27 @@ export default function PacientePerfilPage({
               </div>
             </div>
 
+            {saveError && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {saveError}
+              </div>
+            )}
+
+            {saveSuccess && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <CheckCircle className="w-4 h-4 shrink-0" />
+                Dados atualizados com sucesso!
+              </div>
+            )}
+
             <button
               type="submit"
-              className="px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm rounded-xl transition-all cursor-pointer shadow-sm hover:shadow"
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-2.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-semibold text-sm rounded-xl transition-all cursor-pointer shadow-sm hover:shadow"
             >
-              Salvar Alterações
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saving ? "A guardar..." : "Salvar Alterações"}
             </button>
           </form>
         )}
@@ -286,68 +365,134 @@ export default function PacientePerfilPage({
         {/* ABA: HISTÓRICO FINANCEIRO */}
         {activeTab === "financeiro" && (
           <div className="space-y-6">
-            {/* Lançamento Rápido de Recebível */}
-            {userRole === "psicologo_admin" && (
-              <form onSubmit={handleAddFinancial} className="bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-850 p-4 rounded-2xl flex flex-col md:flex-row gap-3 items-end">
-                <div className="flex-1 space-y-1.5 w-full">
-                  <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Descrição do Lançamento</label>
-                  <input
-                    type="text"
-                    placeholder="Sessão Extra, Consulta, etc..."
-                    value={newFinancialDesc}
-                    onChange={(e) => setNewFinancialDesc(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                  />
+            {/* Lançamento Rápido */}
+            {userRole !== "secretaria" && (
+              <form onSubmit={handleAddFinancial} className="bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-850 p-4 rounded-2xl space-y-3">
+                <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Novo Lançamento
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Descrição</label>
+                    <input
+                      type="text"
+                      placeholder="Sessão, Consulta, etc..."
+                      value={newFinancialDesc}
+                      onChange={(e) => setNewFinancialDesc(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Valor (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newFinancialVal}
+                      onChange={(e) => setNewFinancialVal(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Tipo</label>
+                    <select
+                      value={newFinancialTipo}
+                      onChange={(e) => setNewFinancialTipo(e.target.value as "receita" | "despesa")}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    >
+                      <option value="receita">Receita</option>
+                      <option value="despesa">Despesa</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Categoria</label>
+                    <select
+                      value={newFinancialCategoria}
+                      onChange={(e) => setNewFinancialCategoria(e.target.value as "consultorio" | "pessoal")}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    >
+                      <option value="consultorio">Consultório</option>
+                      <option value="pessoal">Pessoal</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Data de Vencimento</label>
+                    <input
+                      type="date"
+                      value={newFinancialDataVenc}
+                      onChange={(e) => setNewFinancialDataVenc(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    />
+                  </div>
                 </div>
-                <div className="w-full md:w-40 space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Valor (R$)</label>
-                  <input
-                    type="number"
-                    value={newFinancialVal}
-                    onChange={(e) => setNewFinancialVal(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                  />
+
+                {financialError && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    {financialError}
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={financialSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                  >
+                    {financialSaving ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="w-3.5 h-3.5" />
+                    )}
+                    {financialSaving ? "A registrar..." : "Adicionar"}
+                  </button>
                 </div>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl transition-all w-full md:w-auto h-9 cursor-pointer"
-                >
-                  Lançar Recebível
-                </button>
               </form>
             )}
 
             {/* Lista Financeira do Paciente */}
-            <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
-              {financials.map((trans) => (
-                <div key={trans.id} className="py-4 flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
-                      {trans.descricao}
-                    </h4>
-                    <span className="text-xs text-slate-450 dark:text-slate-500 flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5" />
-                      Vencimento: {new Date(trans.dataVencimento).toLocaleDateString("pt-BR")}
-                    </span>
-                  </div>
+            {financialLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 text-sky-500 animate-spin" />
+              </div>
+            ) : financials.length === 0 ? (
+              <p className="text-center text-xs text-slate-400 py-8">Nenhum lançamento financeiro registrado.</p>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                {financials.map((trans) => (
+                  <div key={trans.id} className="py-4 flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+                        {trans.descricao}
+                      </h4>
+                      <span className="text-xs text-slate-450 dark:text-slate-500 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" />
+                        Vencimento: {new Date(trans.dataVencimento).toLocaleDateString("pt-BR")}
+                      </span>
+                    </div>
 
-                  <div className="flex items-center gap-4">
-                    <span className="font-extrabold text-slate-850 dark:text-slate-200 text-sm">
-                      R$ {trans.valor.toFixed(2)}
-                    </span>
-                    <span
-                      className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase border ${
-                        trans.status === "pago"
-                          ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30"
-                          : "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900/30"
-                      }`}
-                    >
-                      {trans.status}
-                    </span>
+                    <div className="flex items-center gap-4">
+                      <span className="font-extrabold text-slate-850 dark:text-slate-200 text-sm">
+                        R$ {Number(trans.valor).toFixed(2)}
+                      </span>
+                      <span
+                        className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase border ${
+                          trans.statusPagamento === "pago"
+                            ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30"
+                            : "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900/30"
+                        }`}
+                      >
+                        {trans.statusPagamento}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -386,49 +531,26 @@ export default function PacientePerfilPage({
                   </div>
                 </div>
 
-                {/* Nova Evolução Clínica */}
-                <form onSubmit={handleAddRecord} className="space-y-3">
-                  <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    Registrar Evolução Clínica
-                  </label>
-                  <textarea
-                    placeholder="Escreva como foi o andamento da sessão, comportamento relatado, intervenções clínicas aplicadas..."
-                    rows={4}
-                    value={newRecordContent}
-                    onChange={(e) => setNewRecordContent(e.target.value)}
-                    className="w-full p-3.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer ml-auto"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Gravar Prontuário</span>
-                  </button>
-                </form>
-
-                {/* Lista de Prontuários Passados */}
-                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    Histórico de Evoluções
-                  </h4>
-
-                  <div className="space-y-4">
-                    {records.map((rec) => (
-                      <div
-                        key={rec.id}
-                        className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3"
-                      >
-                        <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-100 dark:border-slate-800">
-                          <span className="font-semibold">Autor: {rec.autor}</span>
-                          <span>{new Date(rec.createdAt).toLocaleString("pt-BR")}</span>
-                        </div>
-                        <p className="text-xs leading-relaxed text-slate-650 dark:text-slate-300 font-medium">
-                          {rec.conteudo}
-                        </p>
-                      </div>
-                    ))}
+                {/* Redirecionamento para página de prontuários */}
+                <div className="flex flex-col items-center gap-4 py-8 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                    <FileText className="w-7 h-7 text-slate-400" />
                   </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                      Prontuários Clínicos
+                    </p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm">
+                      Acesse a área de prontuários para registrar e consultar as evoluções clínicas deste paciente.
+                    </p>
+                  </div>
+                  <Link
+                    href="/dashboard/prontuarios"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-bold rounded-xl shadow-sm shadow-sky-500/20 transition-all"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Ver Prontuários
+                  </Link>
                 </div>
               </div>
             )}
