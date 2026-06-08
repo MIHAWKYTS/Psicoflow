@@ -127,12 +127,10 @@ export default function AgendaCalendar() {
   };
 
   const today = new Date();
-  const pendingReminders = sessions.filter(
-    (s) =>
-      s.status === "agendada" &&
-      !s.lembreteEnviado &&
-      isSameDay(new Date(s.dataHoraInicio), today)
+  const todayAgendadas = sessions.filter(
+    (s) => s.status === "agendada" && isSameDay(new Date(s.dataHoraInicio), today)
   );
+  const pendingReminders = todayAgendadas.filter((s) => !s.lembreteEnviado);
 
   const filteredSessions = sessions.filter((s) => {
     const matchesSearch = s.patient.nome.toLowerCase().includes(search.toLowerCase());
@@ -305,15 +303,17 @@ export default function AgendaCalendar() {
             {loading && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
           </div>
           <div className="flex items-center gap-2">
-            {pendingReminders.length > 0 && (
+            {todayAgendadas.length > 0 && (
               <button
                 onClick={handleSendReminders}
-                disabled={sendingReminders}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold transition-all"
+                disabled={sendingReminders || pendingReminders.length === 0}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold transition-all"
               >
                 <Bell className="w-3.5 h-3.5" />
                 {sendingReminders
                   ? "Enviando..."
+                  : pendingReminders.length === 0
+                  ? "Lembretes enviados hoje"
                   : `Enviar Lembretes do Dia (${pendingReminders.length})`}
               </button>
             )}
