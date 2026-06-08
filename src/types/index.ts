@@ -15,6 +15,7 @@ export interface JWTPayload {
   email: string;
   role: UserRole;
   statusAssinatura: StatusAssinatura;
+  isActive: boolean;
   iat?: number;
   exp?: number;
 }

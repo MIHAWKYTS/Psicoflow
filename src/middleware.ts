@@ -13,9 +13,55 @@ import {
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "TROCAR_POR_UM_SEGREDO_FORTE_EM_PRODUCAO"
 );
+const ADMIN_JWT_SECRET = new TextEncoder().encode(
+  process.env.ADMIN_JWT_SECRET || "ADMIN_SECRET_TROCAR_EM_PRODUCAO"
+);
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // ── Admin portal (isolado, verificado antes do fluxo de usuário) ────────
+  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
+    // Rotas de autenticação admin são sempre públicas
+    if (pathname.startsWith("/api/admin/auth")) {
+      return NextResponse.next();
+    }
+
+    const adminToken = request.cookies.get("psicoflow_admin_token")?.value;
+
+    // Página de login: redireciona se já autenticado
+    if (pathname === "/admin/login") {
+      if (adminToken) {
+        try {
+          await jwtVerify(adminToken, ADMIN_JWT_SECRET);
+          return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+        } catch {
+          return NextResponse.next();
+        }
+      }
+      return NextResponse.next();
+    }
+
+    // Demais rotas admin exigem cookie válido
+    if (!adminToken) {
+      if (pathname.startsWith("/api/admin")) {
+        return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+      }
+      return NextResponse.redirect(new URL("/admin/login", request.url));
+    }
+
+    try {
+      await jwtVerify(adminToken, ADMIN_JWT_SECRET);
+      return NextResponse.next();
+    } catch {
+      if (pathname.startsWith("/api/admin")) {
+        return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+      }
+      const res = NextResponse.redirect(new URL("/admin/login", request.url));
+      res.cookies.delete("psicoflow_admin_token");
+      return res;
+    }
+  }
 
   // 1. Isolar arquivos estáticos/internos do Next
   if (
@@ -59,6 +105,7 @@ export async function middleware(request: NextRequest) {
     
     const role = payload.role as string;
     const statusAssinatura = payload.statusAssinatura as string;
+    const isActive = payload.isActive as boolean;
 
     // Se estiver logado e tentar ir para telas de login/registro, manda pro dashboard
     if (isPublicRoute) {
@@ -66,7 +113,20 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(dashboardUrl);
     }
 
-    // 2. Bloqueio por Inadimplência
+    // 2. Bloqueio por tenant inativo (suspenso pelo admin global)
+    if (isActive === false) {
+      if (pathname.startsWith("/dashboard")) {
+        return NextResponse.redirect(new URL("/suspensao", request.url));
+      }
+      if (isApiRoute && !isPublicApiRoute) {
+        return NextResponse.json(
+          { success: false, error: "Conta suspensa. Entre em contato com o suporte." },
+          { status: 403 }
+        );
+      }
+    }
+
+    // 3. Bloqueio por Inadimplência
     // Se inadimplente, só pode acessar rotas permitidas (como tela de pagamento)
     if (statusAssinatura === "inadimplente") {
       const isAllowedRoute = INADIMPLENTE_ALLOWED_ROUTES.some((route) =>
@@ -155,6 +215,9 @@ export const config = {
     "/login",
     "/registro",
     "/esqueci-senha",
+    "/resetar-senha",
+    "/suspensao",
+    "/admin/:path*",
     "/dashboard/:path*",
     "/api/:path*",
   ],

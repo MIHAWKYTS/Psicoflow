@@ -73,7 +73,7 @@ export async function PUT(
         return errorResponse(errorMsg, 400);
       }
 
-      const { patientId, sessionId, conteudo } = parsed.data;
+      const { patientId, sessionId, contratoTerapeutico, anamnese, avaliacaoHipotese, planoTrabalho, encerramento, dataEncerramento } = parsed.data;
 
       // Garantir integridade do patientId
       if (patientId !== record.patientId) {
@@ -84,7 +84,12 @@ export async function PUT(
         where: { id },
         data: {
           sessionId: sessionId || null,
-          conteudo,
+          contratoTerapeutico: contratoTerapeutico ?? undefined,
+          anamnese: anamnese ?? undefined,
+          avaliacaoHipotese: avaliacaoHipotese ?? undefined,
+          planoTrabalho: planoTrabalho ?? undefined,
+          encerramento: encerramento ?? undefined,
+          dataEncerramento: dataEncerramento ? new Date(dataEncerramento) : undefined,
         },
       });
 

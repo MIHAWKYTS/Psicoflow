@@ -77,7 +77,7 @@ export default function EngajamentoPage() {
         <select
           value={patientId}
           onChange={(e) => setPatientId(e.target.value)}
-          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm"
+          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
         >
           {patients.map((patient) => (
             <option key={patient.id} value={patient.id}>
@@ -90,7 +90,7 @@ export default function EngajamentoPage() {
           value={assunto}
           onChange={(e) => setAssunto(e.target.value)}
           placeholder="Assunto do e-mail"
-          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm"
+          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
           required
         />
 
@@ -99,7 +99,7 @@ export default function EngajamentoPage() {
           onChange={(e) => setMensagem(e.target.value)}
           placeholder="Mensagem de acompanhamento"
           rows={4}
-          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm"
+          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
           required
         />
 
@@ -108,7 +108,7 @@ export default function EngajamentoPage() {
           onChange={(e) => setLinks(e.target.value)}
           placeholder="Links (1 por linha)"
           rows={3}
-          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm"
+          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
         />
 
         <textarea
@@ -116,7 +116,7 @@ export default function EngajamentoPage() {
           onChange={(e) => setPdfUrls(e.target.value)}
           placeholder="URLs de PDF (1 por linha)"
           rows={3}
-          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm"
+          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
         />
 
         <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
