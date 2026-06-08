@@ -105,7 +105,7 @@ export async function PUT(
           descricao: descricao || "",
           valor,
           statusPagamento,
-          dataVencimento: parseISO(dataVencimento),
+          dataVencimento: dataVencimento ? parseISO(dataVencimento) : transaction.dataVencimento,
           dataPagamento,
         },
       });

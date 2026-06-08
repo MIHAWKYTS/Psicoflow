@@ -15,11 +15,13 @@ model Tenant {
   nomeClinica           String                 @map("nome_clinica")
   documento             String
   statusAssinatura      StatusAssinatura       @default(trial) @map("status_assinatura")
+  isActive              Boolean                @default(true) @map("is_active")
   dataFimTrial          DateTime               @map("data_fim_trial")
   mpCustomerId          String?                @map("mp_customer_id")
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
   clinicalCases         ClinicalCase[]
+  clinicalEvolutions    ClinicalEvolution[]
   clinicalRecords       ClinicalRecord[]
   financialTransactions FinancialTransaction[]
   patients              Patient[]
@@ -31,20 +33,24 @@ model Tenant {
   @@map("tenants")
 }
 
-/// Usuário do sistema — psicólogo administrador ou secretária.
+/// Usuário do sistema — psicólogo administrador, psicólogo associado ou secretária.
 model User {
-  id              String           @id @default(uuid()) @db.Uuid
-  tenantId        String           @map("tenant_id") @db.Uuid
-  nome            String
-  email           String           @unique
-  senhaHash       String           @map("senha_hash")
-  role            UserRole         @default(psicologo)
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  clinicalCases   ClinicalCase[]
-  clinicalRecords ClinicalRecord[] @relation("AutorProntuario")
-  tasks           Task[]
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                  String               @id @default(uuid()) @db.Uuid
+  tenantId            String               @map("tenant_id") @db.Uuid
+  nome                String
+  email               String               @unique
+  cpf                 String?
+  senhaHash           String               @map("senha_hash")
+  role                UserRole             @default(psicologo)
+  ativo               Boolean              @default(true)
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  clinicalCases       ClinicalCase[]
+  clinicalEvolutions  ClinicalEvolution[]  @relation("AutorEvolucao")
+  clinicalRecords     ClinicalRecord[]     @relation("AutorProntuario")
+  passwordResetTokens PasswordResetToken[]
+  tasks               Task[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@map("users")
@@ -71,13 +77,20 @@ model Patient {
   id                    String                 @id @default(uuid()) @db.Uuid
   tenantId              String                 @map("tenant_id") @db.Uuid
   nome                  String
+  cpf                   String?
+  dataNascimento        DateTime?              @map("data_nascimento")
+  responsavelLegal      String?                @map("responsavel_legal")
+  genero                String?
+  profissao             String?
+  estadoCivil           String?                @map("estado_civil")
+  endereco              String?
+  email                 String?
   telefoneWhatsapp      String?                @map("telefone_whatsapp")
   status                StatusPaciente         @default(ativo)
   frequenciaSessoes     FrequenciaSessoes?     @map("frequencia_sessoes")
   valorSessaoPadrao     Decimal?               @map("valor_sessao_padrao") @db.Decimal(10, 2)
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
-  email                 String?
   clinicalRecords       ClinicalRecord[]
   financialTransactions FinancialTransaction[]
   tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -90,18 +103,19 @@ model Patient {
 
 /// Sessão agendada entre psicólogo e paciente.
 model Session {
-  id              String           @id @default(uuid()) @db.Uuid
-  tenantId        String           @map("tenant_id") @db.Uuid
-  patientId       String           @map("patient_id") @db.Uuid
-  dataHoraInicio  DateTime         @map("data_hora_inicio")
-  dataHoraFim     DateTime         @map("data_hora_fim")
-  status          StatusSessao     @default(agendada)
-  lembreteEnviado Boolean          @default(false) @map("lembrete_enviado")
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  clinicalRecords ClinicalRecord[]
-  patient         Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                 String              @id @default(uuid()) @db.Uuid
+  tenantId           String              @map("tenant_id") @db.Uuid
+  patientId          String              @map("patient_id") @db.Uuid
+  dataHoraInicio     DateTime            @map("data_hora_inicio")
+  dataHoraFim        DateTime            @map("data_hora_fim")
+  status             StatusSessao        @default(agendada)
+  lembreteEnviado    Boolean             @default(false) @map("lembrete_enviado")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  clinicalEvolutions ClinicalEvolution[]
+  clinicalRecords    ClinicalRecord[]
+  patient            Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([patientId])
@@ -109,28 +123,57 @@ model Session {
   @@map("sessions")
 }
 
-/// Prontuário eletrônico — protegido pela LGPD.
-/// Apenas psicólogo_admin tem acesso. Secretária é bloqueada.
+/// Prontuário eletrônico — cabeçalho estruturado com 5 blocos clínicos.
+/// Protegido pela LGPD. Apenas psicólogos têm acesso. Secretária é bloqueada.
 model ClinicalRecord {
-  id             String   @id @default(uuid()) @db.Uuid
-  tenantId       String   @map("tenant_id") @db.Uuid
-  patientId      String   @map("patient_id") @db.Uuid
-  sessionId      String?  @map("session_id") @db.Uuid
-  conteudo       String
-  suportaAnexo   Boolean  @default(false) @map("suporta_anexo")
-  urlAnexo       String?  @map("url_anexo")
-  usuarioAutorId String   @map("usuario_autor_id") @db.Uuid
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  session        Session? @relation(fields: [sessionId], references: [id])
-  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  autor          User     @relation("AutorProntuario", fields: [usuarioAutorId], references: [id], onDelete: Cascade)
+  id                  String              @id @default(uuid()) @db.Uuid
+  tenantId            String              @map("tenant_id") @db.Uuid
+  patientId           String              @map("patient_id") @db.Uuid
+  sessionId           String?             @map("session_id") @db.Uuid
+  usuarioAutorId      String              @map("usuario_autor_id") @db.Uuid
+  contratoTerapeutico String?             @map("contrato_terapeutico")
+  anamnese            String?
+  avaliacaoHipotese   String?             @map("avaliacao_hipotese")
+  planoTrabalho       String?             @map("plano_trabalho")
+  encerramento        String?
+  dataEncerramento    DateTime?           @map("data_encerramento")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  evolucoes           ClinicalEvolution[]
+  patient             Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  session             Session?            @relation(fields: [sessionId], references: [id])
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  autor               User                @relation("AutorProntuario", fields: [usuarioAutorId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([patientId])
   @@index([sessionId])
   @@map("clinical_records")
+}
+
+/// Evolução clínica por sessão — vinculada ao prontuário-mestre do paciente.
+model ClinicalEvolution {
+  id               String         @id @default(uuid()) @db.Uuid
+  tenantId         String         @map("tenant_id") @db.Uuid
+  clinicalRecordId String         @map("clinical_record_id") @db.Uuid
+  sessionId        String?        @map("session_id") @db.Uuid
+  autorId          String         @map("autor_id") @db.Uuid
+  dataHora         DateTime       @map("data_hora")
+  temas            String
+  intervencoes     String
+  respostaPaciente String?        @map("resposta_paciente")
+  encaminhamentos  String?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  clinicalRecord   ClinicalRecord @relation(fields: [clinicalRecordId], references: [id], onDelete: Cascade)
+  session          Session?       @relation(fields: [sessionId], references: [id])
+  autor            User           @relation("AutorEvolucao", fields: [autorId], references: [id], onDelete: Cascade)
+  tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([clinicalRecordId])
+  @@index([sessionId])
+  @@map("clinical_evolutions")
 }
 
 /// Transações financeiras — receitas e despesas.
@@ -200,6 +243,20 @@ model ClinicalCase {
   @@map("clinical_cases")
 }
 
+/// Token para recuperação de senha — expira em 1h.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("password_reset_tokens")
+}
+
 enum StatusAssinatura {
   trial
   ativo
@@ -209,6 +266,7 @@ enum StatusAssinatura {
 
 enum UserRole {
   admin
+  psicologo_admin
   psicologo
   secretaria
 }

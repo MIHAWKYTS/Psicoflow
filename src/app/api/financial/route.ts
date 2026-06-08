@@ -75,10 +75,6 @@ export async function GET(req: NextRequest) {
 // ─── POST /api/financial (Lançar Transação) ─────────────────
 export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
-    if (ctx.role === "secretaria") {
-      return errorResponse("Acesso negado. Cadastro financeiro restrito.", 403);
-    }
-
     try {
       const body = await req.json();
       const parsed = financialTransactionSchema.safeParse(body);
@@ -117,7 +113,7 @@ export async function POST(req: NextRequest) {
           descricao: descricao || "",
           valor,
           statusPagamento,
-          dataVencimento: parseISO(dataVencimento),
+          dataVencimento: dataVencimento ? parseISO(dataVencimento) : new Date(),
           dataPagamento: statusPagamento === "pago" ? new Date() : null,
         },
       });

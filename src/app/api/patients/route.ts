@@ -63,7 +63,10 @@ export async function POST(req: NextRequest) {
       const patient = await prisma.patient.create({
         data: {
           ...parsed.data,
-          tenantId: ctx.tenantId, // Forçando isolamento de tenant
+          dataNascimento: parsed.data.dataNascimento
+            ? new Date(parsed.data.dataNascimento)
+            : undefined,
+          tenantId: ctx.tenantId,
         },
       });
 

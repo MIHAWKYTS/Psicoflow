@@ -22,7 +22,7 @@ export default function AuthLayout({
             <div className="w-9 h-9 rounded-xl bg-sky-500 flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-sky-500/25">
               Ψ
             </div>
-            <span className="font-extrabold text-slate-850 dark:text-white text-xl tracking-tight">
+            <span className="font-extrabold text-slate-900 dark:text-white text-xl tracking-tight">
               PsicoFlow
             </span>
           </div>

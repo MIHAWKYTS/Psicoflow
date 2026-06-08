@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
           nome,
           email,
           senhaHash: hash,
-          role: "psicologo",
+          role: "psicologo_admin",
         },
         include: {
           tenant: true,
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
       email: result.email,
       role: result.role,
       statusAssinatura: result.tenant.statusAssinatura,
+      isActive: true,
     });
 
     await setAuthCookie(token);
