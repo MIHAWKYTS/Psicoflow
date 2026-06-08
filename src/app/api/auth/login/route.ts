@@ -40,14 +40,27 @@ export async function POST(req: NextRequest) {
       return errorResponse("Sua conta foi desativada. Entre em contato com o responsável da clínica.", 403);
     }
 
+    // Verificar se o trial expirou e atualizar o status no banco
+    let statusAssinatura = user.tenant.statusAssinatura;
+    if (statusAssinatura === "trial" && user.tenant.dataFimTrial) {
+      if (new Date(user.tenant.dataFimTrial) < new Date()) {
+        await prisma.tenant.update({
+          where: { id: user.tenantId },
+          data: { statusAssinatura: "inadimplente" },
+        });
+        statusAssinatura = "inadimplente";
+      }
+    }
+
     const token = generateToken({
       userId: user.id,
       tenantId: user.tenantId,
       nome: user.nome,
       email: user.email,
       role: user.role,
-      statusAssinatura: user.tenant.statusAssinatura,
+      statusAssinatura,
       isActive: user.tenant.isActive,
+      dataFimTrial: user.tenant.dataFimTrial?.toISOString(),
     });
 
     await setAuthCookie(token);

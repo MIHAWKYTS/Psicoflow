@@ -6,21 +6,36 @@ import { Bell, CreditCard, Sparkles } from "lucide-react";
 interface HeaderProps {
   nomeClinica?: string;
   statusAssinatura?: "trial" | "ativo" | "inadimplente" | "cancelado";
+  dataFimTrial?: string;
 }
 
 export default function DashboardHeader({
   nomeClinica = "Minha Clínica",
   statusAssinatura = "trial",
+  dataFimTrial,
 }: HeaderProps) {
+  const daysLeft =
+    statusAssinatura === "trial" && dataFimTrial
+      ? Math.max(0, Math.ceil((new Date(dataFimTrial).getTime() - Date.now()) / 86_400_000))
+      : null;
+
   const statusBadges = {
-    trial: "bg-sky-500/10 text-sky-600 border-sky-500/20 dark:text-sky-400",
+    trial:
+      daysLeft !== null && daysLeft <= 3
+        ? "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400"
+        : "bg-sky-500/10 text-sky-600 border-sky-500/20 dark:text-sky-400",
     ativo: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
     inadimplente: "bg-rose-500/10 text-rose-600 border-rose-500/20 dark:text-rose-450",
     cancelado: "bg-slate-500/10 text-slate-600 border-slate-500/20 dark:text-slate-400",
   };
 
+  const trialLabel =
+    daysLeft !== null
+      ? `Trial – ${daysLeft} dia${daysLeft !== 1 ? "s" : ""} restante${daysLeft !== 1 ? "s" : ""}`
+      : "Free Trial (15 dias)";
+
   const statusLabels = {
-    trial: "Free Trial (30 dias)",
+    trial: trialLabel,
     ativo: "Plano Ativo",
     inadimplente: "Inadimplente 💳",
     cancelado: "Assinatura Cancelada",

@@ -136,7 +136,7 @@ export default function LoginPage() {
             href="/registro"
             className="font-bold text-sky-500 hover:text-sky-600 transition-colors"
           >
-            Experimente Grátis por 30 dias
+            Experimente Grátis por 15 dias
           </Link>
         </p>
       </div>
