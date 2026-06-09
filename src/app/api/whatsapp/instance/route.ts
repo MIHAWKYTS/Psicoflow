@@ -84,7 +84,14 @@ export async function POST(_req: NextRequest) {
 
     if (!res.ok) {
       const body = await res.text();
-      return errorResponse(`Erro ao criar instância na Evolution API: ${body}`, 500);
+
+      // Instância já existe na Evolution API mas não está no banco — recuperar
+      const alreadyInUse =
+        res.status === 403 && body.includes("already in use");
+
+      if (!alreadyInUse) {
+        return errorResponse(`Erro ao criar instância na Evolution API: ${body}`, 500);
+      }
     }
 
     const instance = await prisma.whatsAppInstance.create({
