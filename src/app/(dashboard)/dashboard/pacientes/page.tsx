@@ -1,76 +1,48 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Search, Phone, Calendar, CreditCard, ChevronRight, X, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
 
 type Patient = {
   id: string;
   nome: string;
-  cpf?: string | null;
+  status: string;
   telefoneWhatsapp?: string | null;
-  status: "ativo" | "inativo";
-  frequenciaSessoes?: "semanal" | "quinzenal" | "mensal" | null;
+  frequenciaSessoes?: string | null;
   valorSessaoPadrao?: number | null;
-}
+};
 
-interface FormData {
-  nome: string;
-  cpf: string;
-  telefoneWhatsapp: string;
-  frequenciaSessoes: "semanal" | "quinzenal" | "mensal" | "";
-  valorSessaoPadrao: string;
-  status: "ativo" | "inativo";
-}
-
-interface FormErrors {
-  nome?: string;
-  cpf?: string;
-  telefoneWhatsapp?: string;
-  frequenciaSessoes?: string;
-  valorSessaoPadrao?: string;
-  general?: string;
-}
-
-const EMPTY_FORM: FormData = {
+const EMPTY_FORM = {
   nome: "",
-  cpf: "",
   telefoneWhatsapp: "",
-  frequenciaSessoes: "",
+  email: "",
+  cpf: "",
+  frequenciaSessoes: "semanal",
   valorSessaoPadrao: "",
   status: "ativo",
 };
 
-// ─── Skeleton Card ────────────────────────────────────────────────────────────
+const inputClass =
+  "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500";
 
-function PatientCardSkeleton() {
-  return (
-    <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm animate-pulse">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
-          <div className="space-y-2">
-            <div className="h-4 w-36 bg-slate-200 dark:bg-slate-700 rounded-md" />
-            <div className="h-3 w-16 bg-slate-100 dark:bg-slate-800 rounded-full" />
-          </div>
-        </div>
-      </div>
-      <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-        <div className="h-3 w-48 bg-slate-100 dark:bg-slate-800 rounded" />
-        <div className="h-3 w-32 bg-slate-100 dark:bg-slate-800 rounded" />
-        <div className="h-3 w-28 bg-slate-100 dark:bg-slate-800 rounded" />
-      </div>
-    </div>
-  );
+function maskPhone(value: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 10)
+    return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
+  return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+function maskCPF(value: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  return d
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
 
 export default function PacientesPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("todos");
   const [loading, setLoading] = useState(true);
@@ -102,69 +74,55 @@ export default function PacientesPage() {
 
   async function fetchPatients() {
     try {
-      const res = await fetch("/api/patients", { signal });
-      if (!res.ok) throw new Error("Erro ao carregar pacientes.");
-      const data = await res.json();
-      setPatients(data.data ?? data);
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name === "AbortError") return;
-      setFetchError("Não foi possível carregar os pacientes. Tente novamente.");
+      const response = await fetch("/api/patients");
+      if (response.ok) {
+        const resData = await response.json();
+        setPatients(resData.data?.items || []);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar pacientes", error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetchPatients(controller.signal);
-    return () => { controller.abort(); };
-  }, [fetchPatients]);
+    fetchPatients();
+  }, []);
 
-  const filteredPatients = patients.filter((p) => {
-    const matchesSearch = p.nome.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = filterStatus === "todos" || p.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
-
-  function openDrawer() {
-    setForm(EMPTY_FORM);
-    setFormErrors({});
-    setDrawerOpen(true);
+  function openModal() {
+    setForm({ ...EMPTY_FORM });
+    setFormError("");
+    setModalOpen(true);
   }
 
-  function closeDrawer() {
-    setDrawerOpen(false);
+  function closeModal() {
+    setModalOpen(false);
+    setFormError("");
   }
 
-  function validateForm(): boolean {
-    const errors: FormErrors = {};
-    if (!form.nome.trim() || form.nome.trim().length < 2) {
-      errors.nome = "Nome é obrigatório (mínimo 2 caracteres).";
-    }
-    if (form.valorSessaoPadrao && isNaN(parseFloat(form.valorSessaoPadrao))) {
-      errors.valorSessaoPadrao = "Valor deve ser um número válido.";
-    }
-    if (form.valorSessaoPadrao && parseFloat(form.valorSessaoPadrao) <= 0) {
-      errors.valorSessaoPadrao = "Valor deve ser positivo.";
-    }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+  function set<K extends keyof typeof EMPTY_FORM>(key: K, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!form.nome.trim()) {
+      setFormError("Nome é obrigatório.");
+      return;
+    }
 
-    setSubmitting(true);
-    setFormErrors({});
+    setSaving(true);
+    setFormError("");
 
     try {
       const body: Record<string, unknown> = {
         nome: form.nome.trim(),
         status: form.status,
       };
-      if (form.cpf) body.cpf = form.cpf.replace(/\D/g, "");
-      if (form.telefoneWhatsapp) body.telefoneWhatsapp = form.telefoneWhatsapp;
+      if (form.telefoneWhatsapp.trim()) body.telefoneWhatsapp = form.telefoneWhatsapp.trim();
+      if (form.email.trim()) body.email = form.email.trim();
+      if (form.cpf.trim()) body.cpf = form.cpf.trim();
       if (form.frequenciaSessoes) body.frequenciaSessoes = form.frequenciaSessoes;
       if (form.valorSessaoPadrao) body.valorSessaoPadrao = parseFloat(form.valorSessaoPadrao);
 
@@ -174,50 +132,27 @@ export default function PacientesPage() {
         body: JSON.stringify(body),
       });
 
-      const json = await res.json();
+      const data = await res.json();
 
       if (!res.ok) {
-        setFormErrors({ general: json.error ?? "Erro ao cadastrar paciente." });
+        setFormError(data.error || "Erro ao cadastrar paciente.");
         return;
       }
 
-      const newPatient: Patient = json.data ?? json;
-      setPatients((prev) => [newPatient, ...prev]);
-      closeDrawer();
+      setPatients((prev) => [data.data, ...prev]);
+      closeModal();
     } catch {
-      setFormErrors({ general: "Erro de conexão. Tente novamente." });
+      setFormError("Erro de conexão. Tente novamente.");
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   }
 
-  async function handleToggleStatus(e: React.MouseEvent, patient: Patient) {
-    e.preventDefault();
-
-    const newStatus = patient.status === "ativo" ? "inativo" : "ativo";
-
-    setPatients((prev) =>
-      prev.map((p) => (p.id === patient.id ? { ...p, status: newStatus } : p))
-    );
-
-    try {
-      const res = await fetch(`/api/patients/${patient.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (!res.ok) {
-        setPatients((prev) =>
-          prev.map((p) => (p.id === patient.id ? { ...p, status: patient.status } : p))
-        );
-      }
-    } catch {
-      setPatients((prev) =>
-        prev.map((p) => (p.id === patient.id ? { ...p, status: patient.status } : p))
-      );
-    }
-  }
+  const filteredPatients = patients.filter((p) => {
+    const matchesSearch = p.nome.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = filterStatus === "todos" || p.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6">
@@ -234,8 +169,7 @@ export default function PacientesPage() {
 
         <button
           type="button"
-          id="btn-cadastrar-paciente"
-          onClick={openDrawer}
+          onClick={openModal}
           className="flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm rounded-xl shadow-sm hover:shadow active:scale-98 transition-all w-full sm:w-auto cursor-pointer"
         >
           <Plus className="w-4 h-4" />
@@ -266,20 +200,21 @@ export default function PacientesPage() {
         </select>
       </div>
 
-      {/* Grid de Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {loading ? (
-          Array.from({ length: 6 }).map((_, i) => <PatientCardSkeleton key={i} />)
-        ) : fetchError ? (
-          <div className="col-span-full bg-red-50 dark:bg-red-950/20 rounded-2xl border border-red-100 dark:border-red-900/30 p-8 text-center text-red-500">
-            {fetchError}
-          </div>
-        ) : filteredPatients.length > 0 ? (
-          filteredPatients.map((patient) => (
-            <div key={patient.id} className="relative group">
+      {/* Grid de Pacientes */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredPatients.length > 0 ? (
+            filteredPatients.map((patient) => (
               <Link
+                key={patient.id}
                 href={`/dashboard/pacientes/${patient.id}`}
-                className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between block"
+                className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between group"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -327,224 +262,186 @@ export default function PacientesPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>
-                      Frequência:{" "}
-                      <strong className="capitalize">
-                        {patient.frequenciaSessoes ?? "—"}
-                      </strong>
-                    </span>
+                    <span>Frequência: <strong className="capitalize">{patient.frequenciaSessoes || "—"}</strong></span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>
-                      Sessão:{" "}
-                      <strong>
-                        {patient.valorSessaoPadrao != null
-                          ? `R$ ${Number(patient.valorSessaoPadrao).toFixed(2)}`
-                          : "—"}
-                      </strong>
-                    </span>
+                    <span>Sessão: <strong>R$ {patient.valorSessaoPadrao != null ? Number(patient.valorSessaoPadrao).toFixed(2) : "—"}</strong></span>
                   </div>
                 </div>
               </Link>
-
-              {/* Botão toggle Ativo/Inativo */}
-              <button
-                type="button"
-                title={patient.status === "ativo" ? "Desativar paciente" : "Ativar paciente"}
-                onClick={(e) => handleToggleStatus(e, patient)}
-                className={`absolute top-3 right-10 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer ${
-                  patient.status === "ativo"
-                    ? "text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                    : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`}
-              >
-                {patient.status === "ativo" ? (
-                  <ToggleRight className="w-5 h-5" />
-                ) : (
-                  <ToggleLeft className="w-5 h-5" />
-                )}
-              </button>
-            </div>
-          ))
-        ) : (
-          <div className="col-span-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center text-slate-400 dark:text-slate-500">
-            Nenhum paciente encontrado.
-          </div>
-        )}
-      </div>
-
-      {/* Overlay */}
-      {drawerOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
-          onClick={closeDrawer}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Drawer de Cadastro */}
-      <div
-        className={`fixed top-0 right-0 h-full w-full sm:w-[440px] bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${
-          drawerOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-        aria-label="Cadastrar Paciente"
-        role="dialog"
-        aria-modal="true"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-              Novo Paciente
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Preencha os dados do paciente
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={closeDrawer}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Formulário */}
-        <form
-          id="form-cadastro-paciente"
-          onSubmit={handleSubmit}
-          className="flex-1 overflow-y-auto px-6 py-6 space-y-5"
-          noValidate
-        >
-          {formErrors.general && (
-            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 text-sm">
-              {formErrors.general}
+            ))
+          ) : (
+            <div className="col-span-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center text-slate-400 dark:text-slate-500">
+              Nenhum paciente encontrado.
             </div>
           )}
-
-          <div className="space-y-1.5">
-            <label htmlFor="patient-nome" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Nome completo <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="patient-nome"
-              type="text"
-              placeholder="Ex: Ana Beatriz Silva"
-              value={form.nome}
-              onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
-              className={`w-full px-4 py-2.5 text-sm rounded-xl border bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400 ${
-                formErrors.nome ? "border-red-400 dark:border-red-600" : "border-slate-200 dark:border-slate-800"
-              }`}
-            />
-            {formErrors.nome && <p className="text-xs text-red-500">{formErrors.nome}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="patient-cpf" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-              CPF <span className="text-slate-400 font-normal">(opcional)</span>
-            </label>
-            <CpfInput
-              id="patient-cpf"
-              value={form.cpf}
-              onChange={(val) => setForm((f) => ({ ...f, cpf: val }))}
-            />
-            {formErrors.cpf && <p className="text-xs text-red-500">{formErrors.cpf}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="patient-telefone" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Telefone WhatsApp
-            </label>
-            <input
-              id="patient-telefone"
-              type="tel"
-              placeholder="(11) 98765-4321"
-              value={form.telefoneWhatsapp}
-              onChange={(e) => setForm((f) => ({ ...f, telefoneWhatsapp: e.target.value }))}
-              className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="patient-frequencia" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Frequência de sessões
-            </label>
-            <select
-              id="patient-frequencia"
-              value={form.frequenciaSessoes}
-              onChange={(e) => setForm((f) => ({ ...f, frequenciaSessoes: e.target.value as FormData["frequenciaSessoes"] }))}
-              className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer"
-            >
-              <option value="">Selecionar frequência...</option>
-              <option value="semanal">Semanal</option>
-              <option value="quinzenal">Quinzenal</option>
-              <option value="mensal">Mensal</option>
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="patient-valor" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Valor padrão da sessão (R$)
-            </label>
-            <input
-              id="patient-valor"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Ex: 150.00"
-              value={form.valorSessaoPadrao}
-              onChange={(e) => setForm((f) => ({ ...f, valorSessaoPadrao: e.target.value }))}
-              className={`w-full px-4 py-2.5 text-sm rounded-xl border bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400 ${
-                formErrors.valorSessaoPadrao ? "border-red-400 dark:border-red-600" : "border-slate-200 dark:border-slate-800"
-              }`}
-            />
-            {formErrors.valorSessaoPadrao && <p className="text-xs text-red-500">{formErrors.valorSessaoPadrao}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="patient-status" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Status inicial
-            </label>
-            <select
-              id="patient-status"
-              value={form.status}
-              onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as "ativo" | "inativo" }))}
-              className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer"
-            >
-              <option value="ativo">Ativo</option>
-              <option value="inativo">Inativo</option>
-            </select>
-          </div>
-        </form>
-
-        {/* Rodapé */}
-        <div className="px-6 py-5 border-t border-slate-100 dark:border-slate-800 flex gap-3">
-          <button
-            type="button"
-            onClick={closeDrawer}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            form="form-cadastro-paciente"
-            disabled={submitting}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-sky-500 hover:bg-sky-600 disabled:opacity-60 disabled:cursor-not-allowed transition-all cursor-pointer"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              "Cadastrar"
-            )}
-          </button>
         </div>
-      </div>
+      )}
+
+      {/* Modal de Cadastro */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm"
+            onClick={closeModal}
+          />
+
+          {/* Painel */}
+          <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+              <h2 className="font-extrabold text-slate-800 dark:text-white text-base">
+                Novo Paciente
+              </h2>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Formulário */}
+            <form id="cadastro-form" onSubmit={handleSubmit} className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* Nome */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  Nome Completo <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.nome}
+                  onChange={(e) => set("nome", e.target.value)}
+                  placeholder="Ex: Maria da Silva"
+                  className={inputClass}
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Telefone */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                    WhatsApp
+                  </label>
+                  <input
+                    type="text"
+                    value={form.telefoneWhatsapp}
+                    onChange={(e) => set("telefoneWhatsapp", maskPhone(e.target.value))}
+                    placeholder="(11) 99999-9999"
+                    className={inputClass}
+                  />
+                </div>
+
+                {/* CPF */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                    CPF
+                  </label>
+                  <input
+                    type="text"
+                    value={form.cpf}
+                    onChange={(e) => set("cpf", maskCPF(e.target.value))}
+                    placeholder="000.000.000-00"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => set("email", e.target.value)}
+                  placeholder="paciente@email.com"
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Frequência */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                    Frequência
+                  </label>
+                  <select
+                    value={form.frequenciaSessoes}
+                    onChange={(e) => set("frequenciaSessoes", e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="semanal">Semanal</option>
+                    <option value="quinzenal">Quinzenal</option>
+                    <option value="mensal">Mensal</option>
+                  </select>
+                </div>
+
+                {/* Valor da sessão */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                    Valor da Sessão (R$)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.valorSessaoPadrao}
+                    onChange={(e) => set("valorSessaoPadrao", e.target.value)}
+                    placeholder="150,00"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  Status
+                </label>
+                <select
+                  value={form.status}
+                  onChange={(e) => set("status", e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="ativo">Ativo</option>
+                  <option value="inativo">Inativo</option>
+                </select>
+              </div>
+
+              {/* Erro */}
+              {formError && (
+                <p className="text-xs text-rose-500 font-medium">{formError}</p>
+              )}
+            </form>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="px-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="cadastro-form"
+                disabled={saving}
+                className="flex items-center gap-2 px-5 py-2 text-sm rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold transition-all"
+              >
+                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {saving ? "Salvando..." : "Cadastrar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
