@@ -5,9 +5,11 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
+import { randomUUID } from "crypto";
 import type { JWTPayload } from "@/types";
 
-const JWT_SECRET = process.env.JWT_SECRET || "TROCAR_POR_UM_SEGREDO_FORTE_EM_PRODUCAO";
+if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET não definido nas variáveis de ambiente");
+const JWT_SECRET = process.env.JWT_SECRET as string;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const COOKIE_NAME = "psigen_token";
 
@@ -35,8 +37,8 @@ export async function verifyPassword(
 /**
  * Gera um token JWT com os dados do usuário.
  */
-export function generateToken(payload: Omit<JWTPayload, "iat" | "exp">): string {
-  return jwt.sign(payload, JWT_SECRET, {
+export function generateToken(payload: Omit<JWTPayload, "iat" | "exp" | "jti">): string {
+  return jwt.sign({ ...payload, jti: randomUUID() }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
   });
 }

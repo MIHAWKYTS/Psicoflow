@@ -5,8 +5,14 @@ import { registroSchema } from "@/lib/validations";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
 import { addDays } from "date-fns";
 import { TRIAL_DURATION_DAYS } from "@/lib/constants";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const { limited, retryAfter } = checkRateLimit(getClientIp(req));
+  if (limited) {
+    return errorResponse(`Muitas tentativas. Tente novamente em ${retryAfter} segundos.`, 429);
+  }
+
   try {
     const body = await req.json();
     
