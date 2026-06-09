@@ -117,11 +117,11 @@ export default function EngajamentoPage() {
 
         {/* Upload de arquivos */}
         <div className="space-y-3">
-          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
+          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 text-center">
             Arquivos (PDF ou imagem)
           </label>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center gap-3">
             <UploadButton
               endpoint="materialUploader"
               content={{ button: uploading ? "Enviando..." : "Escolha o arquivo" }}
@@ -171,11 +171,11 @@ export default function EngajamentoPage() {
 
           {/* Lista de arquivos adicionados */}
           {fileUrls.length > 0 && (
-            <ul className="space-y-1">
+            <ul className="space-y-1 flex flex-col items-center">
               {fileUrls.map((f) => (
                 <li
                   key={f.url}
-                  className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300"
+                  className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 w-full max-w-md"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <Paperclip className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -212,23 +212,25 @@ export default function EngajamentoPage() {
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={sending || fileUrls.length === 0 || uploading}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-bold transition-all"
-        >
-          {sending ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Enviando...
-            </>
-          ) : (
-            <>
-              <MessageCircle className="w-4 h-4" />
-              Enviar via WhatsApp
-            </>
-          )}
-        </button>
+        <div className="flex justify-center">
+          <button
+            type="submit"
+            disabled={sending || fileUrls.length === 0 || uploading}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-bold transition-all"
+          >
+            {sending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Enviando...
+              </>
+            ) : (
+              <>
+                <MessageCircle className="w-4 h-4" />
+                Enviar via WhatsApp
+              </>
+            )}
+          </button>
+        </div>
       </form>
     </div>
   );
