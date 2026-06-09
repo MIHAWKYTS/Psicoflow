@@ -23,12 +23,17 @@ export async function GET(req: NextRequest) {
 
     const tipo = searchParams.get("tipo") || undefined; // 'receita' ou 'despesa'
     const status = searchParams.get("status") || undefined; // 'pendente', 'pago', 'cancelado'
+    const patientIdFilter = searchParams.get("patientId") || undefined;
     const inicioStr = searchParams.get("inicio");
     const fimStr = searchParams.get("fim");
 
     const where: any = {
       tenantId: ctx.tenantId,
     };
+
+    if (patientIdFilter) {
+      where.patientId = patientIdFilter;
+    }
 
     if (tipo === "receita" || tipo === "despesa") {
       where.tipo = tipo;

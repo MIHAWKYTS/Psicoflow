@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import {
   FolderKanban,
   Shield,
   LogOut,
+  Settings,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
@@ -23,6 +24,8 @@ type SidebarRole = UserRole | "admin" | "psicologo" | "psicologo_admin";
 interface SidebarProps {
   userRole: SidebarRole;
   userName: string;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 const roleLabels: Record<string, string> = {
@@ -42,11 +45,16 @@ function getInitials(name: string) {
   return initials.map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "U";
 }
 
-export default function DashboardSidebar({ userRole, userName }: SidebarProps) {
+export default function DashboardSidebar({ userRole, userName, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const firstName = getFirstName(userName);
   const initials = getInitials(userName);
   const roleLabel = roleLabels[userRole] ?? "Psicólogo(a)";
+
+  useEffect(() => {
+    if (onClose) onClose();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -72,6 +80,12 @@ export default function DashboardSidebar({ userRole, userName }: SidebarProps) {
       icon: DollarSign,
     },
     { name: "Engajamento", href: "/dashboard/engajamento", icon: MessageSquare },
+    {
+      name: "Configurações",
+      href: "/dashboard/configuracoes",
+      icon: Settings,
+      adminOnly: true,
+    },
   ];
 
   const handleLogout = async () => {
@@ -84,7 +98,13 @@ export default function DashboardSidebar({ userRole, userName }: SidebarProps) {
   };
 
   return (
-    <aside className="w-64 border-r border-slate-150 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col h-screen shrink-0 transition-all duration-300">
+    <aside
+      className={`
+        w-64 border-r border-slate-150 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col h-screen shrink-0 transition-transform duration-300
+        fixed inset-y-0 left-0 z-50 lg:relative lg:translate-x-0 lg:z-auto
+        ${isOpen ? "translate-x-0" : "-translate-x-full"}
+      `}
+    >
       {/* Logotipo e Header */}
       <div className="h-16 flex items-center px-6 border-b border-slate-100 dark:border-slate-800 gap-2.5">
         <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-extrabold text-lg shadow-md shadow-sky-500/20">
