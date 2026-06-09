@@ -1096,34 +1096,6 @@ export default function AgendaPage() {
           </div>
         </div>
       )}
-
-      {/* ─── Toast de Progresso / Resultado do Disparo WhatsApp ─── */}
-      {reminderToast && (
-        <div
-          role="status"
-          className={`fixed bottom-6 right-6 z-[60] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl font-semibold text-sm max-w-sm transition-all duration-300 ${
-            reminderToast.type === "progress"
-              ? "bg-slate-900 dark:bg-slate-800 text-white border border-slate-700"
-              : reminderToast.type === "success"
-              ? "bg-emerald-500 text-white border border-emerald-400"
-              : "bg-rose-500 text-white border border-rose-400"
-          }`}
-        >
-          {reminderToast.type === "progress" && (
-            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-          )}
-          <span className="flex-1">{reminderToast.message}</span>
-          {reminderToast.type !== "progress" && (
-            <button
-              onClick={() => setReminderToast(null)}
-              className="ml-1 opacity-80 hover:opacity-100 cursor-pointer shrink-0"
-              aria-label="Fechar"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }
