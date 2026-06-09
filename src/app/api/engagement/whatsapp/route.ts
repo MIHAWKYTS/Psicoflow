@@ -6,14 +6,14 @@ import { successResponse, errorResponse } from "@/lib/api-helpers";
 export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
     const body = await req.json().catch(() => ({}));
-    const { patientId, mensagem, fileUrls } = body as {
+    const { patientId, mensagem, files } = body as {
       patientId?: string;
       mensagem?: string;
-      fileUrls?: string[];
+      files?: { url: string; name: string }[];
     };
 
-    if (!patientId || !mensagem || !Array.isArray(fileUrls) || fileUrls.length === 0) {
-      return errorResponse("patientId, mensagem e fileUrls são obrigatórios.", 400);
+    if (!patientId || !mensagem || !Array.isArray(files) || files.length === 0) {
+      return errorResponse("patientId, mensagem e files são obrigatórios.", 400);
     }
 
     const patient = await prisma.patient.findFirst({
@@ -39,9 +39,9 @@ export async function POST(req: NextRequest) {
     const digits = phone.replace(/\D/g, "");
     let sent = 0;
 
-    for (let i = 0; i < fileUrls.length; i++) {
-      const url = fileUrls[i];
-      const fileName = decodeURIComponent(url.split("/").pop()?.split("?")[0] ?? "material");
+    for (let i = 0; i < files.length; i++) {
+      const { url, name } = files[i];
+      const fileName = name || "material";
       const mediatype = /\.(jpe?g|png|gif|webp)$/i.test(fileName) ? "image" : "document";
 
       const res = await fetch(`${evolutionUrl}/message/sendMedia/${instance.instanceName}`, {
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     if (sent === 0) return errorResponse("Falha ao enviar os arquivos via WhatsApp.", 502);
 
     return successResponse(
-      { sent, total: fileUrls.length },
+      { sent, total: files.length },
       `${sent} arquivo(s) enviado(s) via WhatsApp.`
     );
   });
