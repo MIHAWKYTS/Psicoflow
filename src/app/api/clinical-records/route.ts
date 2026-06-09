@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
 import { clinicalRecordSchema } from "@/lib/validations";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { logAudit, extractIp } from "@/lib/audit";
 
 // ─── GET /api/clinical-records (Listar Prontuários de um Paciente) ───
 export async function GET(req: NextRequest) {
@@ -50,6 +51,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
+    await logAudit(ctx.tenantId, ctx.userId, "VIEW", "ClinicalRecord", patientId, extractIp(req));
     return successResponse(records);
   });
 }
@@ -106,6 +108,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      await logAudit(ctx.tenantId, ctx.userId, "CREATE", "ClinicalRecord", record.id, extractIp(req));
       return successResponse(record, "Prontuário salvo com sucesso", 201);
     } catch (err) {
       console.error("Erro ao registrar prontuário:", err);

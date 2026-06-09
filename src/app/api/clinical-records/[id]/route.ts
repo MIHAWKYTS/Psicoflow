@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
 import { clinicalRecordSchema } from "@/lib/validations";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { logAudit, extractIp } from "@/lib/audit";
 
 async function findRecordOrError(id: string, tenantId: string) {
   return prisma.clinicalRecord.findFirst({
@@ -43,6 +44,7 @@ export async function GET(
       return errorResponse("Prontuário não encontrado", 404);
     }
 
+    await logAudit(ctx.tenantId, ctx.userId, "VIEW", "ClinicalRecord", id, extractIp(req));
     return successResponse(record);
   });
 }
@@ -93,6 +95,7 @@ export async function PUT(
         },
       });
 
+      await logAudit(ctx.tenantId, ctx.userId, "UPDATE", "ClinicalRecord", id, extractIp(req));
       return successResponse(updated, "Prontuário atualizado com sucesso");
     } catch (err) {
       console.error("Erro ao atualizar prontuário:", err);
@@ -123,6 +126,7 @@ export async function DELETE(
         where: { id },
       });
 
+      await logAudit(ctx.tenantId, ctx.userId, "DELETE", "ClinicalRecord", id, extractIp(req));
       return successResponse(null, "Prontuário removido com sucesso");
     } catch (err) {
       console.error("Erro ao remover prontuário:", err);

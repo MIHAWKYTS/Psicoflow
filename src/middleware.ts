@@ -10,15 +10,24 @@ import {
 
 // Usando `jose` ao invés de `jsonwebtoken` pois o middleware Next.js roda no Edge Runtime,
 // que não suporta APIs nativas do Node.js usadas pelo jsonwebtoken.
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "TROCAR_POR_UM_SEGREDO_FORTE_EM_PRODUCAO"
-);
-const ADMIN_JWT_SECRET = new TextEncoder().encode(
-  process.env.ADMIN_JWT_SECRET || "ADMIN_SECRET_TROCAR_EM_PRODUCAO"
-);
+if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET não definido nas variáveis de ambiente");
+if (!process.env.ADMIN_JWT_SECRET) throw new Error("ADMIN_JWT_SECRET não definido nas variáveis de ambiente");
+
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
+const ADMIN_JWT_SECRET = new TextEncoder().encode(process.env.ADMIN_JWT_SECRET);
+
+const CONTEXT_HEADERS = [
+  "x-user-id", "x-tenant-id", "x-user-role",
+  "x-subscription-status", "x-user-email", "x-user-nome", "x-token-jti",
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Limpa headers de contexto injetados pelo cliente para evitar spoofing
+  const cleanedHeaders = new Headers(request.headers);
+  CONTEXT_HEADERS.forEach((h) => cleanedHeaders.delete(h));
+  request = new Request(request.url, { ...request, headers: cleanedHeaders }) as NextRequest;
 
   // ── Admin portal (isolado, verificado antes do fluxo de usuário) ────────
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
@@ -215,6 +224,7 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set("x-user-role", role);
     requestHeaders.set("x-subscription-status", statusAssinatura);
     requestHeaders.set("x-user-email", payload.email as string);
+    requestHeaders.set("x-token-jti", payload.jti as string);
     if (payload.nome) requestHeaders.set("x-user-nome", encodeURIComponent(payload.nome as string));
 
     return NextResponse.next({

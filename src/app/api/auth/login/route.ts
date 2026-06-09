@@ -3,8 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword, generateToken, setAuthCookie } from "@/lib/auth";
 import { loginSchema } from "@/lib/validations";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const { limited, retryAfter } = checkRateLimit(getClientIp(req));
+  if (limited) {
+    return errorResponse(`Muitas tentativas. Tente novamente em ${retryAfter} segundos.`, 429);
+  }
+
   try {
     const body = await req.json();
 

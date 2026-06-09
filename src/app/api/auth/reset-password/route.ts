@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
 
 const schema = z.object({
@@ -49,6 +49,22 @@ export async function POST(req: NextRequest) {
         data: { usedAt: new Date() },
       }),
     ]);
+
+    // Invalida token ativo do usuário se houver (cookie de sessão)
+    const activeToken = req.cookies.get("psigen_token")?.value;
+    if (activeToken) {
+      const payload = verifyToken(activeToken);
+      if (payload?.jti) {
+        const exp = payload.exp ? new Date(payload.exp * 1000) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        try {
+          await prisma.invalidatedToken.create({
+            data: { jti: payload.jti, userId: payload.userId, expiresAt: exp },
+          });
+        } catch {
+          // Ignora se já estiver na blacklist
+        }
+      }
+    }
 
     return successResponse(null, "Senha redefinida com sucesso.");
   } catch (err) {
