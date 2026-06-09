@@ -43,7 +43,8 @@ export async function GET(_req: NextRequest) {
     const base64 = data?.base64 ?? data?.qrcode?.base64 ?? null;
 
     if (!base64) {
-      return errorResponse("QR Code não disponível.", 404);
+      console.error("[qrcode] Evolution API response:", JSON.stringify(data));
+      return errorResponse(`QR Code não disponível. Resposta: ${JSON.stringify(data)}`, 404);
     }
 
     return successResponse({ base64 });
