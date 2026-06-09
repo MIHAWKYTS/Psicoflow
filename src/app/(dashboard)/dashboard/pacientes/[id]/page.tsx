@@ -72,7 +72,7 @@ export default function PacientePerfilPage({
         const res = await fetch(`/api/financial?patientId=${id}`);
         if (res.ok) {
           const data = await res.json();
-          setFinancials(data.data ?? []);
+          setFinancials(data.data?.items ?? []);
         }
       } catch (err) {
         console.error("Erro ao buscar financeiro", err);
@@ -96,6 +96,9 @@ export default function PacientePerfilPage({
   const [newFinancialDataVenc, setNewFinancialDataVenc] = useState(
     new Date().toISOString().split("T")[0]
   );
+  const [newFinancialJaPago, setNewFinancialJaPago] = useState(true);
+  const [newFinancialForma, setNewFinancialForma] = useState<"dinheiro" | "pix" | "cartao">("pix");
+  const [newFinancialParcelas, setNewFinancialParcelas] = useState(1);
   const [financialSaving, setFinancialSaving] = useState(false);
   const [financialError, setFinancialError] = useState("");
 
@@ -155,8 +158,10 @@ export default function PacientePerfilPage({
           categoria: newFinancialCategoria,
           descricao: newFinancialDesc,
           valor: parseFloat(newFinancialVal),
-          statusPagamento: "pendente",
+          statusPagamento: newFinancialJaPago ? "pago" : "pendente",
           dataVencimento: newFinancialDataVenc,
+          formaPagamento: newFinancialForma,
+          parcelas: newFinancialForma === "cartao" ? newFinancialParcelas : 1,
         }),
       });
 
@@ -170,6 +175,9 @@ export default function PacientePerfilPage({
       setNewFinancialDesc("");
       setNewFinancialVal(String(patient?.valorSessaoPadrao ?? 0));
       setNewFinancialDataVenc(new Date().toISOString().split("T")[0]);
+      setNewFinancialJaPago(true);
+      setNewFinancialForma("pix");
+      setNewFinancialParcelas(1);
     } catch {
       setFinancialError("Erro de conexão. Tente novamente.");
     } finally {
@@ -420,7 +428,7 @@ export default function PacientePerfilPage({
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Data de Vencimento</label>
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Data</label>
                     <input
                       type="date"
                       value={newFinancialDataVenc}
@@ -428,7 +436,48 @@ export default function PacientePerfilPage({
                       className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                     />
                   </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Forma de Pagamento</label>
+                    <select
+                      value={newFinancialForma}
+                      onChange={(e) => setNewFinancialForma(e.target.value as "dinheiro" | "pix" | "cartao")}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    >
+                      <option value="pix">Pix</option>
+                      <option value="dinheiro">Dinheiro</option>
+                      <option value="cartao">Cartão</option>
+                    </select>
+                  </div>
+
+                  {newFinancialForma === "cartao" && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Parcelas</label>
+                      <select
+                        value={newFinancialParcelas}
+                        onChange={(e) => setNewFinancialParcelas(Number(e.target.value))}
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                          <option key={n} value={n}>{n}x</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
+
+                {/* Toggle já pago */}
+                <label className="flex items-center gap-3 cursor-pointer w-fit">
+                  <div
+                    onClick={() => setNewFinancialJaPago((v) => !v)}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${newFinancialJaPago ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"}`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${newFinancialJaPago ? "translate-x-5" : "translate-x-0.5"}`} />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                    Já pago
+                  </span>
+                </label>
 
                 {financialError && (
                   <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 text-xs font-semibold text-rose-600 dark:text-rose-400">
@@ -471,7 +520,14 @@ export default function PacientePerfilPage({
                       </h4>
                       <span className="text-xs text-slate-450 dark:text-slate-500 flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
-                        Vencimento: {new Date(trans.dataVencimento).toLocaleDateString("pt-BR")}
+                        {new Date(trans.dataVencimento).toLocaleDateString("pt-BR")}
+                        {trans.formaPagamento && (
+                          <span className="ml-1 capitalize">
+                            · {trans.formaPagamento === "cartao"
+                                ? `Cartão${trans.parcelas > 1 ? ` ${trans.parcelas}x` : ""}`
+                                : trans.formaPagamento === "pix" ? "Pix" : "Dinheiro"}
+                          </span>
+                        )}
                       </span>
                     </div>
 
@@ -545,11 +601,11 @@ export default function PacientePerfilPage({
                     </p>
                   </div>
                   <Link
-                    href="/dashboard/prontuarios"
+                    href={`/dashboard/prontuarios/${id}`}
                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-bold rounded-xl shadow-sm shadow-sky-500/20 transition-all"
                   >
                     <ExternalLink className="w-4 h-4" />
-                    Ver Prontuários
+                    Ver Prontuário
                   </Link>
                 </div>
               </div>
