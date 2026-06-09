@@ -1,5 +1,5 @@
 // ===========================
-// PsicoFlow - Tipos Globais
+// PsiGen - Tipos Globais
 // ===========================
 
 import type { UserRole, StatusAssinatura } from "@prisma/client";
@@ -9,6 +9,7 @@ import type { UserRole, StatusAssinatura } from "@prisma/client";
  * Presente em todas as requisições autenticadas.
  */
 export interface JWTPayload {
+  jti: string;
   userId: string;
   tenantId: string;
   nome: string;
@@ -16,7 +17,7 @@ export interface JWTPayload {
   role: UserRole;
   statusAssinatura: StatusAssinatura;
   isActive: boolean;
-  dataFimTrial?: string; // ISO string — presente apenas quando statusAssinatura === "trial"
+  dataFimTrial?: string;
   iat?: number;
   exp?: number;
 }

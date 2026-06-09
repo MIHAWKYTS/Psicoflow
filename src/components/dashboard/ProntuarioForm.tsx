@@ -207,7 +207,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
   };
 
   const inputClass =
-    "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500";
+    "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500";
 
   const BlockSaveIndicator = ({ state }: { state: BlockSaveState }) => {
     if (state === "idle") return null;
@@ -236,7 +236,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
       {/* Bloco 1 — Identificação */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
-          <User className="w-4 h-4 text-sky-500" />
+          <User className="w-4 h-4 text-indigo-500" />
           Identificação
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -273,7 +273,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
           <div key={field} className={sectionClass}>
             <div className="flex items-center justify-between">
               <h2 className={sectionTitleClass}>
-                <Icon className="w-4 h-4 text-sky-500" />
+                <Icon className="w-4 h-4 text-indigo-500" />
                 {meta.title}
               </h2>
               <BlockSaveIndicator state={blockStates[field]} />
@@ -293,7 +293,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
       {/* Bloco 6 — Evoluções */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
-          <BookOpen className="w-4 h-4 text-sky-500" />
+          <BookOpen className="w-4 h-4 text-indigo-500" />
           Evoluções
         </h2>
 
@@ -317,30 +317,36 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
             {evolutions.map((ev) => (
               <div
                 key={ev.id}
-                className="border border-slate-100 dark:border-slate-800 rounded-xl p-4 space-y-2"
+                className="border border-slate-100 dark:border-slate-800 border-l-4 border-l-indigo-400 rounded-xl p-4 space-y-3 bg-slate-50/40 dark:bg-slate-950/20"
               >
-                <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
-                  <span>{new Date(ev.dataHora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>
-                  {ev.autor && <span>{ev.autor.nome}</span>}
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-indigo-500 dark:text-indigo-400">
+                    {new Date(ev.dataHora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  </span>
+                  {ev.autor && (
+                    <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                      {ev.autor.nome}
+                    </span>
+                  )}
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Temas</p>
-                  <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{ev.temas}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Temas</p>
+                  <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap leading-relaxed">{ev.temas}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Intervenções</p>
-                  <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{ev.intervencoes}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Intervenções</p>
+                  <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap leading-relaxed">{ev.intervencoes}</p>
                 </div>
                 {ev.respostaPaciente && (
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Resposta do Paciente</p>
-                    <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{ev.respostaPaciente}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Resposta do Paciente</p>
+                    <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap leading-relaxed">{ev.respostaPaciente}</p>
                   </div>
                 )}
                 {ev.encaminhamentos && (
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Encaminhamentos</p>
-                    <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{ev.encaminhamentos}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Encaminhamentos</p>
+                    <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap leading-relaxed">{ev.encaminhamentos}</p>
                   </div>
                 )}
               </div>
@@ -353,7 +359,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
       <div className={sectionClass}>
         <div className="flex items-center justify-between">
           <h2 className={sectionTitleClass}>
-            <CheckSquare className="w-4 h-4 text-sky-500" />
+            <CheckSquare className="w-4 h-4 text-indigo-500" />
             Encerramento
           </h2>
           <BlockSaveIndicator state={blockStates["encerramento"]} />
@@ -376,7 +382,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
               value={blockValues["dataEncerramento"]}
               onChange={(e) => setBlockValues((prev) => ({ ...prev, dataEncerramento: e.target.value }))}
               onBlur={(e) => saveBlock("dataEncerramento", e.target.value)}
-              className="px-3 py-1.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+              className="px-3 py-1.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
             <BlockSaveIndicator state={blockStates["dataEncerramento"]} />
           </div>

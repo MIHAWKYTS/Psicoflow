@@ -19,11 +19,11 @@ export default function AuthLayout({
         <div className="mx-auto w-full max-w-md">
           {/* Logo */}
           <div className="flex items-center gap-2.5 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-sky-500 flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-sky-500/25">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-indigo-500/25">
               Ψ
             </div>
             <span className="font-extrabold text-slate-900 dark:text-white text-xl tracking-tight">
-              PsicoFlow
+              PsiGen
             </span>
           </div>
 
@@ -32,14 +32,14 @@ export default function AuthLayout({
       </div>
 
       {/* Painel Direito (Visual Inspirador) */}
-      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-sky-500 to-sky-600 dark:from-slate-900 dark:to-slate-950 relative overflow-hidden">
+      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-indigo-600 to-violet-600 dark:from-slate-900 dark:to-slate-950 relative overflow-hidden">
         {/* Detalhes de grade e círculos decorativos */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:24px_24px]" />
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-400/20 dark:bg-sky-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-400/20 dark:bg-indigo-500/5 rounded-full blur-3xl" />
 
         {/* Branding e Versão */}
         <div className="relative z-10 text-white/80 font-semibold text-sm">
-          PsicoFlow v1.0.0
+          PsiGen v1.0.0
         </div>
 
         {/* Conteúdo Central */}
@@ -54,7 +54,7 @@ export default function AuthLayout({
             <h2 className="text-3xl font-extrabold text-white leading-tight tracking-tight">
               Tudo que você precisa para gerir sua clínica.
             </h2>
-            <p className="text-sky-100 dark:text-slate-400 text-sm leading-relaxed">
+            <p className="text-indigo-100 dark:text-slate-400 text-sm leading-relaxed">
               Agenda, prontuários, financeiro e muito mais — em uma plataforma segura e feita para psicólogos.
             </p>
           </div>
@@ -84,7 +84,7 @@ export default function AuthLayout({
             <blockquote className="text-sm font-medium text-white/75 leading-relaxed italic">
               "O curioso paradoxo é que quando eu me aceito como sou, então eu posso mudar."
             </blockquote>
-            <cite className="block text-xs font-bold text-sky-200 dark:text-sky-400 not-italic uppercase tracking-widest mt-2">
+            <cite className="block text-xs font-bold text-indigo-200 dark:text-indigo-400 not-italic uppercase tracking-widest mt-2">
               — Carl Rogers
             </cite>
           </div>
@@ -92,7 +92,7 @@ export default function AuthLayout({
 
         {/* Footer */}
         <div className="relative z-10 text-xs text-white/60 font-medium">
-          &copy; {new Date().getFullYear()} PsicoFlow. Todos os direitos reservados.
+          &copy; {new Date().getFullYear()} PsiGen. Todos os direitos reservados.
         </div>
       </div>
     </div>

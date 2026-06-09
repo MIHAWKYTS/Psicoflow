@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // ===========================
-// PsicoFlow - Schemas de Validação (Zod)
+// PsiGen - Schemas de Validação (Zod)
 // ===========================
 
 // ─── CPF ────────────────────────────────────────────────
@@ -118,7 +118,9 @@ export const financialTransactionSchema = z.object({
   descricao: z.string().optional(),
   valor: z.number().positive("Valor deve ser positivo"),
   statusPagamento: z.enum(["pendente", "pago", "cancelado"]).default("pendente"),
-  dataVencimento: z.string().datetime("Data de vencimento inválida").optional(),
+  dataVencimento: z.string().date("Data de vencimento inválida").optional(),
+  formaPagamento: z.enum(["dinheiro", "pix", "cartao"]).optional(),
+  parcelas: z.number().int().min(1).max(48).optional(),
 });
 
 // ─── Rotina: Tarefas e Casos ───────────────────────────────

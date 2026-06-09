@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
       await sendEmail({
         to: session.patient.email,
-        subject: "Lembrete da sua consulta - PsicoFlow",
+        subject: "Lembrete da sua consulta - PsiGen",
         html: buildSessionReminderEmail(
           session.patient.nome,
           session.dataHoraInicio.toLocaleString("pt-BR")

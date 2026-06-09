@@ -56,14 +56,14 @@ type ReminderJob = {
 };
 
 const statusThemes: Record<string, string> = {
-  agendada: "bg-sky-50 dark:bg-sky-950/20 text-sky-700 dark:text-sky-400 border-sky-100 dark:border-sky-900/30 hover:bg-sky-100/50 dark:hover:bg-sky-950/40",
+  agendada: "bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/30 hover:bg-indigo-100/50 dark:hover:bg-indigo-950/40",
   realizada: "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100/50 dark:hover:bg-emerald-950/40",
   cancelada: "bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-900/30 hover:bg-rose-100/50 dark:hover:bg-rose-950/40",
   falta: "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900/30 hover:bg-amber-100/50 dark:hover:bg-amber-950/40",
 };
 
 const dotColors: Record<string, string> = {
-  agendada: "bg-sky-500",
+  agendada: "bg-indigo-500",
   realizada: "bg-emerald-500",
   cancelada: "bg-rose-500",
   falta: "bg-amber-500",
@@ -217,7 +217,7 @@ export default function AgendaCalendar() {
               ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30"
               : reminderJob.status === "error"
               ? "bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-900/30"
-              : "bg-sky-50 dark:bg-sky-950/20 text-sky-700 dark:text-sky-400 border-sky-100 dark:border-sky-900/30"
+              : "bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/30"
           }`}
         >
           {reminderJob.status === "done" && <CheckCircle className="w-4 h-4 shrink-0" />}
@@ -273,7 +273,7 @@ export default function AgendaCalendar() {
               placeholder="Buscar paciente..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
+              className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400"
             />
           </div>
           <div className="relative w-full sm:w-44">
@@ -281,7 +281,7 @@ export default function AgendaCalendar() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all appearance-none cursor-pointer"
+              className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none cursor-pointer"
             >
               <option value="todos">Todos Status</option>
               <option value="agendada">Agendadas</option>
@@ -298,7 +298,7 @@ export default function AgendaCalendar() {
         {/* Cabeçalho */}
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <CalendarIcon className="w-5 h-5 text-sky-500 shrink-0" />
+            <CalendarIcon className="w-5 h-5 text-indigo-500 shrink-0" />
             <h2 className="font-bold text-slate-800 dark:text-slate-100">
               {periodLabel()}
             </h2>
@@ -309,7 +309,7 @@ export default function AgendaCalendar() {
               <button
                 onClick={handleSendReminders}
                 disabled={sendingReminders || pendingReminders.length === 0}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold transition-all"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold transition-all"
               >
                 <Bell className="w-3.5 h-3.5" />
                 {sendingReminders
@@ -351,7 +351,7 @@ export default function AgendaCalendar() {
                   <div className="pb-2 border-b border-slate-200/65 dark:border-slate-800">
                     <span className={`text-sm font-semibold ${
                       isSameDay(day, today)
-                        ? "text-sky-600 dark:text-white"
+                        ? "text-indigo-600 dark:text-white"
                         : "text-slate-800 dark:text-white"
                     }`}>
                       {capitalDay}
@@ -419,18 +419,18 @@ export default function AgendaCalendar() {
                     key={day.toISOString()}
                     className={`aspect-square p-1.5 border rounded-lg flex flex-col justify-between items-center transition-all ${
                       isToday
-                        ? "border-sky-400 dark:border-sky-600 bg-sky-50 dark:bg-sky-950/20"
+                        ? "border-indigo-400 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-950/20"
                         : "border-slate-100 dark:border-slate-800/60 bg-white dark:bg-slate-900"
-                    } ${temSessoes ? "ring-2 ring-sky-500/10" : ""}`}
+                    } ${temSessoes ? "ring-2 ring-indigo-500/10" : ""}`}
                   >
                     <span className={`text-xs font-bold ${
-                      isToday ? "text-sky-600 dark:text-white" : "text-slate-600 dark:text-white"
+                      isToday ? "text-indigo-600 dark:text-white" : "text-slate-600 dark:text-white"
                     }`}>
                       {day.getDate()}
                     </span>
                     {temSessoes && (
                       <div className="flex gap-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       </div>
                     )}

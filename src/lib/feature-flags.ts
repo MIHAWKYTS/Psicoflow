@@ -1,5 +1,5 @@
 // ===========================
-// PsicoFlow - Feature Flags
+// PsiGen - Feature Flags
 // ===========================
 // Centraliza a verificação de feature flags para todo o sistema.
 // Os valores são lidos a partir de variáveis de ambiente.

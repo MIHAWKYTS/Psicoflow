@@ -20,6 +20,7 @@ model Tenant {
   mpCustomerId          String?                @map("mp_customer_id")
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
+  auditLogs             AuditLog[]
   clinicalCases         ClinicalCase[]
   clinicalEvolutions    ClinicalEvolution[]
   clinicalRecords       ClinicalRecord[]
@@ -49,6 +50,8 @@ model User {
   clinicalEvolutions  ClinicalEvolution[]  @relation("AutorEvolucao")
   clinicalRecords     ClinicalRecord[]     @relation("AutorProntuario")
   passwordResetTokens PasswordResetToken[]
+  invalidatedTokens   InvalidatedToken[]
+  auditLogs           AuditLog[]
   tasks               Task[]
   tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -189,6 +192,8 @@ model FinancialTransaction {
   statusPagamento StatusPagamento    @default(pendente) @map("status_pagamento")
   dataVencimento  DateTime           @map("data_vencimento")
   dataPagamento   DateTime?          @map("data_pagamento")
+  formaPagamento  FormaPagamento?    @map("forma_pagamento")
+  parcelas        Int?               @default(1)
   mpPaymentId     String?            @map("mp_payment_id")
   mpLinkPagamento String?            @map("mp_link_pagamento")
   createdAt       DateTime           @default(now()) @map("created_at")
@@ -257,6 +262,39 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+/// Token JWT invalidado — blacklist para logout e troca de senha.
+model InvalidatedToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  jti       String   @unique
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([jti])
+  @@index([expiresAt])
+  @@map("invalidated_tokens")
+}
+
+/// Registro de auditoria para conformidade com LGPD — acesso a prontuários clínicos.
+model AuditLog {
+  id        String     @id @default(uuid()) @db.Uuid
+  tenantId  String     @map("tenant_id") @db.Uuid
+  userId    String     @map("user_id") @db.Uuid
+  acao      AuditAcao
+  recurso   String
+  recursoId String     @map("recurso_id")
+  ip        String?
+  criadoEm DateTime   @default(now()) @map("criado_em")
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([criadoEm])
+  @@map("audit_logs")
+}
+
 enum StatusAssinatura {
   trial
   ativo
@@ -305,6 +343,13 @@ enum CategoriaTransacao {
   pessoal
 }
 
+enum AuditAcao {
+  VIEW
+  CREATE
+  UPDATE
+  DELETE
+}
+
 enum StatusPagamento {
   pendente
   pago
@@ -315,4 +360,10 @@ enum StatusTarefa {
   pendente
   em_andamento
   concluida
+}
+
+enum FormaPagamento {
+  dinheiro
+  pix
+  cartao
 }

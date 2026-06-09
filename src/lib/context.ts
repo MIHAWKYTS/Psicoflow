@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { errorResponse } from "./api-helpers";
+import { prisma } from "./prisma";
 import { UserRole } from "@prisma/client";
 
 export interface RequestContext {
@@ -9,12 +10,9 @@ export interface RequestContext {
   subscriptionStatus: string;
   email: string;
   nome?: string;
+  jti: string;
 }
 
-/**
- * Obtém os dados contextuais da requisição vindos do Middleware.
- * Retorna null se a requisição não estiver autenticada.
- */
 export async function getRequestContext(): Promise<RequestContext | null> {
   const reqHeaders = await headers();
   const userId = reqHeaders.get("x-user-id");
@@ -22,10 +20,11 @@ export async function getRequestContext(): Promise<RequestContext | null> {
   const role = reqHeaders.get("x-user-role");
   const subscriptionStatus = reqHeaders.get("x-subscription-status");
   const email = reqHeaders.get("x-user-email");
+  const jti = reqHeaders.get("x-token-jti");
   const encodedNome = reqHeaders.get("x-user-nome");
   const nome = encodedNome ? decodeURIComponent(encodedNome) : undefined;
 
-  if (!userId || !tenantId || !role || !subscriptionStatus || !email) {
+  if (!userId || !tenantId || !role || !subscriptionStatus || !email || !jti) {
     return null;
   }
 
@@ -36,14 +35,10 @@ export async function getRequestContext(): Promise<RequestContext | null> {
     subscriptionStatus,
     email,
     nome,
+    jti,
   };
 }
 
-/**
- * Helper para validar autenticação e multi-tenant nas API Routes.
- * Caso falhe, retorna a resposta de erro apropriada.
- * Caso passe, executa a callback com os dados contextuais.
- */
 export async function withAuth(
   callback: (context: RequestContext) => Promise<any>
 ) {
@@ -51,5 +46,14 @@ export async function withAuth(
   if (!context) {
     return errorResponse("Não autorizado", 401);
   }
+
+  // Verifica se o token está na blacklist (invalidado por logout ou troca de senha)
+  const invalidated = await prisma.invalidatedToken.findUnique({
+    where: { jti: context.jti },
+  });
+  if (invalidated) {
+    return errorResponse("Sessão inválida. Faça login novamente.", 401);
+  }
+
   return callback(context);
 }

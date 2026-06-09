@@ -1,8 +1,9 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
-const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "ADMIN_SECRET_TROCAR_EM_PRODUCAO";
-const COOKIE_NAME = "psicoflow_admin_token";
+if (!process.env.ADMIN_JWT_SECRET) throw new Error("ADMIN_JWT_SECRET não definido nas variáveis de ambiente");
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET as string;
+const COOKIE_NAME = "psigen_admin_token";
 
 export function generateAdminToken(): string {
   return jwt.sign({ role: "super_admin" }, ADMIN_JWT_SECRET, { expiresIn: "24h" });

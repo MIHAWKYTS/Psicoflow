@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { sendEmail, buildPasswordResetEmail } from "@/lib/email";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const schema = z.object({
   email: z.string().email("E-mail inválido"),
@@ -11,6 +12,11 @@ const schema = z.object({
 const GENERIC_MESSAGE = "Se este e-mail estiver cadastrado, você receberá as instruções em breve.";
 
 export async function POST(req: NextRequest) {
+  const { limited, retryAfter } = checkRateLimit(getClientIp(req));
+  if (limited) {
+    return errorResponse(`Muitas tentativas. Tente novamente em ${retryAfter} segundos.`, 429);
+  }
+
   try {
     const body = await req.json();
     const parsed = schema.safeParse(body);
@@ -43,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     await sendEmail({
       to: user.email,
-      subject: "Redefinição de senha — PsicoFlow",
+      subject: "Redefinição de senha — PsiGen",
       html: buildPasswordResetEmail(user.nome, resetLink),
     });
 

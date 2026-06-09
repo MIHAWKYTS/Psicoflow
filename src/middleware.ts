@@ -10,15 +10,24 @@ import {
 
 // Usando `jose` ao invés de `jsonwebtoken` pois o middleware Next.js roda no Edge Runtime,
 // que não suporta APIs nativas do Node.js usadas pelo jsonwebtoken.
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "TROCAR_POR_UM_SEGREDO_FORTE_EM_PRODUCAO"
-);
-const ADMIN_JWT_SECRET = new TextEncoder().encode(
-  process.env.ADMIN_JWT_SECRET || "ADMIN_SECRET_TROCAR_EM_PRODUCAO"
-);
+if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET não definido nas variáveis de ambiente");
+if (!process.env.ADMIN_JWT_SECRET) throw new Error("ADMIN_JWT_SECRET não definido nas variáveis de ambiente");
+
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
+const ADMIN_JWT_SECRET = new TextEncoder().encode(process.env.ADMIN_JWT_SECRET);
+
+const CONTEXT_HEADERS = [
+  "x-user-id", "x-tenant-id", "x-user-role",
+  "x-subscription-status", "x-user-email", "x-user-nome", "x-token-jti",
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Limpa headers de contexto injetados pelo cliente para evitar spoofing
+  const cleanedHeaders = new Headers(request.headers);
+  CONTEXT_HEADERS.forEach((h) => cleanedHeaders.delete(h));
+  request = new Request(request.url, { ...request, headers: cleanedHeaders }) as NextRequest;
 
   // ── Admin portal (isolado, verificado antes do fluxo de usuário) ────────
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
@@ -27,7 +36,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    const adminToken = request.cookies.get("psicoflow_admin_token")?.value;
+    const adminToken = request.cookies.get("psigen_admin_token")?.value;
 
     // Página de login: redireciona se já autenticado
     if (pathname === "/admin/login") {
@@ -58,7 +67,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
       }
       const res = NextResponse.redirect(new URL("/admin/login", request.url));
-      res.cookies.delete("psicoflow_admin_token");
+      res.cookies.delete("psigen_admin_token");
       return res;
     }
   }
@@ -83,7 +92,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/uploadthing");
 
   // Obter token do cookie
-  const token = request.cookies.get("psicoflow_token")?.value;
+  const token = request.cookies.get("psigen_token")?.value;
 
   // Se não estiver autenticado
   if (!token) {
@@ -140,7 +149,7 @@ export async function middleware(request: NextRequest) {
         }
         if (!isAllowedRoute && isApiRoute && !isPublicApiRoute) {
           return NextResponse.json(
-            { success: false, error: "Período de teste expirado. Assine para continuar usando o PsicoFlow." },
+            { success: false, error: "Período de teste expirado. Assine para continuar usando o PsiGen." },
             { status: 402 }
           );
         }
@@ -215,6 +224,7 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set("x-user-role", role);
     requestHeaders.set("x-subscription-status", statusAssinatura);
     requestHeaders.set("x-user-email", payload.email as string);
+    requestHeaders.set("x-token-jti", payload.jti as string);
     if (payload.nome) requestHeaders.set("x-user-nome", encodeURIComponent(payload.nome as string));
 
     return NextResponse.next({
@@ -226,7 +236,7 @@ export async function middleware(request: NextRequest) {
     console.error("Erro ao validar token no middleware:", err);
     // Token inválido/expirado: limpa cookie e manda pra login
     const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.delete("psicoflow_token");
+    response.cookies.delete("psigen_token");
     return response;
   }
 }

@@ -97,6 +97,8 @@ export async function POST(req: NextRequest) {
         valor,
         statusPagamento,
         dataVencimento,
+        formaPagamento,
+        parcelas,
       } = parsed.data;
 
       // Se houver patientId, validar se pertence ao tenant
@@ -120,13 +122,15 @@ export async function POST(req: NextRequest) {
           statusPagamento,
           dataVencimento: dataVencimento ? parseISO(dataVencimento) : new Date(),
           dataPagamento: statusPagamento === "pago" ? new Date() : null,
+          formaPagamento: formaPagamento ?? null,
+          parcelas: parcelas ?? 1,
         },
       });
 
       return successResponse(transaction, "Lançamento financeiro registrado", 201);
-    } catch (err) {
-      console.error("Erro ao registrar lançamento:", err);
-      return errorResponse("Erro interno no servidor ao registrar lançamento", 500);
+    } catch (err: any) {
+      console.error("Erro ao registrar lançamento:", err?.message ?? err);
+      return errorResponse(err?.message ?? "Erro interno no servidor ao registrar lançamento", 500);
     }
   });
 }

@@ -148,7 +148,7 @@ export default function WhatsAppConfig() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
+        <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
       </div>
     );
   }
@@ -275,7 +275,7 @@ export default function WhatsAppConfig() {
               </div>
             ) : (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
+                <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
               </div>
             )}
 

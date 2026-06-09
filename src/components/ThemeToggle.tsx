@@ -8,7 +8,7 @@ export default function ThemeToggle() {
 
   useEffect(() => {
     // Verificar se há preferência salva ou se o sistema está em dark mode
-    const savedTheme = localStorage.getItem("psicoflow_theme");
+    const savedTheme = localStorage.getItem("psigen_theme");
     const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     
     const initialTheme = savedTheme === "dark" || (!savedTheme && systemPrefersDark) ? "dark" : "light";
@@ -24,7 +24,7 @@ export default function ThemeToggle() {
   const toggleTheme = () => {
     const nextTheme = theme === "light" ? "dark" : "light";
     setTheme(nextTheme);
-    localStorage.setItem("psicoflow_theme", nextTheme);
+    localStorage.setItem("psigen_theme", nextTheme);
     
     if (nextTheme === "dark") {
       document.documentElement.classList.add("dark");
