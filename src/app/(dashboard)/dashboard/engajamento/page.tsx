@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MessageCircle, X, CheckCircle, XCircle, Loader2, Paperclip } from "lucide-react";
-import { UploadButton } from "@/lib/uploadthing";
+import { useUploadThing } from "@/lib/uploadthing";
 
 type Patient = { id: string; nome: string };
 type StatusBanner = { type: "success" | "error"; msg: string } | null;
@@ -16,6 +16,17 @@ export default function EngajamentoPage() {
   const [sending, setSending] = useState(false);
   const [uploadBanner, setUploadBanner] = useState<StatusBanner>(null);
   const [sendBanner, setSendBanner] = useState<StatusBanner>(null);
+
+  const { startUpload } = useUploadThing("materialUploader", {
+    onUploadBegin: () => { setUploading(true); setUploadBanner(null); },
+    onClientUploadComplete: (res: any[]) => {
+      setUploading(false);
+      const novos = res.map((f: any) => ({ url: f.ufsUrl ?? f.url, name: f.name }));
+      setFileUrls((prev) => [...prev, ...novos]);
+      showUploadBanner({ type: "success", msg: `${res.length} arquivo${res.length > 1 ? "s adicionados" : " adicionado"} com sucesso.` });
+    },
+    onUploadError: (err: Error) => { setUploading(false); showUploadBanner({ type: "error", msg: err.message }); },
+  });
 
   useEffect(() => {
     async function loadPatients() {
@@ -54,7 +65,7 @@ export default function EngajamentoPage() {
     const res = await fetch("/api/engagement/whatsapp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId, mensagem, fileUrls: fileUrls.map((f) => f.url) }),
+      body: JSON.stringify({ patientId, mensagem, files: fileUrls.map((f) => ({ url: f.url, name: f.name })) }),
     });
 
     const data = await res.json();
@@ -121,34 +132,16 @@ export default function EngajamentoPage() {
             Arquivos (PDF ou imagem)
           </label>
 
-          <div className="flex items-center justify-center gap-3">
-            <UploadButton
-              endpoint="materialUploader"
-              content={{ button: uploading ? "Enviando..." : "Escolha o arquivo" }}
-              appearance={{
-                button:
-                  "bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all after:bg-sky-600",
-                allowedContent: "text-slate-400 text-[11px]",
-              }}
-              onUploadBegin={() => { setUploading(true); setUploadBanner(null); }}
-              onClientUploadComplete={(res) => {
-                setUploading(false);
-                const novos = res.map((f) => ({
-                  url: (f as any).ufsUrl ?? f.url,
-                  name: f.name,
-                }));
-                setFileUrls((prev) => [...prev, ...novos]);
-                showUploadBanner({
-                  type: "success",
-                  msg: `${res.length} arquivo${res.length > 1 ? "s adicionados" : " adicionado"} com sucesso.`,
-                });
-              }}
-              onUploadError={(err) => {
-                setUploading(false);
-                showUploadBanner({ type: "error", msg: err.message });
-              }}
-            />
-            {uploading && <Loader2 className="w-4 h-4 animate-spin text-sky-500 shrink-0" />}
+          <div className="flex justify-center">
+            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold rounded-xl transition-all">
+              {uploading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Enviando...</> : "Escolha o arquivo"}
+              <input
+                type="file"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => { const f = e.target.files; if (f?.length) startUpload(Array.from(f)); e.target.value = ""; }}
+              />
+            </label>
           </div>
 
           {/* Banner upload */}

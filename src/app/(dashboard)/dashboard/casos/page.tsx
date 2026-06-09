@@ -11,7 +11,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { UploadButton } from "@/lib/uploadthing";
+import { useUploadThing } from "@/lib/uploadthing";
 
 type UploadStatus = { type: "success" | "error"; msg: string } | null;
 
@@ -39,6 +39,24 @@ export default function CasosPage() {
   const [editFields, setEditFields] = useState({ titulo: "", descricao: "", hipoteses: "" });
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const { startUpload } = useUploadThing("documentUploader", {
+    onUploadBegin: () => setUploading(true),
+    onClientUploadComplete: async (res: any[]) => {
+      setUploading(false);
+      const url = (res?.[0] as any)?.ufsUrl ?? res?.[0]?.url;
+      if (!url) { showStatus({ type: "error", msg: "Não foi possível obter a URL do arquivo." }); return; }
+      const entry = JSON.stringify({ name: res[0].name, url });
+      const r = await fetch(`/api/clinical-cases/${selectedCaseId}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentUrl: entry }),
+      });
+      if (r.ok) { showStatus({ type: "success", msg: `Documento "${res[0].name}" anexado com sucesso.` }); fetchCases(); }
+      else showStatus({ type: "error", msg: "Arquivo enviado, mas falhou ao salvar no caso." });
+    },
+    onUploadError: (err: Error) => { setUploading(false); showStatus({ type: "error", msg: err.message }); },
+  });
 
   const fetchCases = useCallback(async () => {
     const res = await fetch("/api/clinical-cases");
@@ -167,41 +185,15 @@ export default function CasosPage() {
         {selectedCaseId ? (
           <div className="space-y-3">
             <div className="flex flex-col items-center gap-3">
-              <UploadButton
-                endpoint="documentUploader"
-                content={{ button: uploading ? "Enviando..." : "Escolha o arquivo" }}
-                appearance={{
-                  button:
-                    "bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all after:bg-sky-600",
-                  allowedContent: "text-slate-400 text-[11px]",
-                }}
-                onUploadBegin={() => setUploading(true)}
-                onClientUploadComplete={async (res) => {
-                  setUploading(false);
-                  const url = (res?.[0] as any)?.ufsUrl ?? res?.[0]?.url;
-                  if (!url) {
-                    showStatus({ type: "error", msg: "Não foi possível obter a URL do arquivo." });
-                    return;
-                  }
-                  const entry = JSON.stringify({ name: res[0].name, url });
-                  const r = await fetch(`/api/clinical-cases/${selectedCaseId}/documents`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ documentUrl: entry }),
-                  });
-                  if (r.ok) {
-                    showStatus({ type: "success", msg: `Documento "${res[0].name}" anexado com sucesso.` });
-                    fetchCases();
-                  } else {
-                    showStatus({ type: "error", msg: "Arquivo enviado, mas falhou ao salvar no caso." });
-                  }
-                }}
-                onUploadError={(err) => {
-                  setUploading(false);
-                  showStatus({ type: "error", msg: err.message });
-                }}
-              />
-              {uploading && <Loader2 className="w-4 h-4 animate-spin text-sky-500" />}
+              <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold rounded-xl transition-all">
+                {uploading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Enviando...</> : "Escolha o arquivo"}
+                <input
+                  type="file"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(e) => { const f = e.target.files; if (f?.length) startUpload(Array.from(f)); e.target.value = ""; }}
+                />
+              </label>
             </div>
 
             {uploadStatus && (
