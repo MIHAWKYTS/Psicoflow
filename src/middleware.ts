@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    const adminToken = request.cookies.get("psicoflow_admin_token")?.value;
+    const adminToken = request.cookies.get("psigen_admin_token")?.value;
 
     // Página de login: redireciona se já autenticado
     if (pathname === "/admin/login") {
@@ -58,7 +58,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
       }
       const res = NextResponse.redirect(new URL("/admin/login", request.url));
-      res.cookies.delete("psicoflow_admin_token");
+      res.cookies.delete("psigen_admin_token");
       return res;
     }
   }
@@ -83,7 +83,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/uploadthing");
 
   // Obter token do cookie
-  const token = request.cookies.get("psicoflow_token")?.value;
+  const token = request.cookies.get("psigen_token")?.value;
 
   // Se não estiver autenticado
   if (!token) {
@@ -140,7 +140,7 @@ export async function middleware(request: NextRequest) {
         }
         if (!isAllowedRoute && isApiRoute && !isPublicApiRoute) {
           return NextResponse.json(
-            { success: false, error: "Período de teste expirado. Assine para continuar usando o PsicoFlow." },
+            { success: false, error: "Período de teste expirado. Assine para continuar usando o PsiGen." },
             { status: 402 }
           );
         }
@@ -226,7 +226,7 @@ export async function middleware(request: NextRequest) {
     console.error("Erro ao validar token no middleware:", err);
     // Token inválido/expirado: limpa cookie e manda pra login
     const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.delete("psicoflow_token");
+    response.cookies.delete("psigen_token");
     return response;
   }
 }

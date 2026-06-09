@@ -131,7 +131,7 @@ export default function LoginPage() {
       {/* Link para criar conta */}
       <div className="text-center pt-2">
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Ainda não tem conta no PsicoFlow?{" "}
+          Ainda não tem conta no PsiGen?{" "}
           <Link
             href="/registro"
             className="font-bold text-indigo-500 hover:text-indigo-600 transition-colors"

@@ -1,5 +1,5 @@
 // ===========================
-// PsicoFlow - Tipos Globais
+// PsiGen - Tipos Globais
 // ===========================
 
 import type { UserRole, StatusAssinatura } from "@prisma/client";

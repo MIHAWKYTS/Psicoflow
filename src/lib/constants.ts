@@ -1,5 +1,5 @@
 // ===========================
-// PsicoFlow - Constantes do Sistema
+// PsiGen - Constantes do Sistema
 // ===========================
 
 /** Duração do período de trial em dias */

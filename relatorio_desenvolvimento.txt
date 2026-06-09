@@ -1,14 +1,14 @@
 ================================================================================
-                       RELATÓRIO DE DESENVOLVIMENTO - PSICOFLOW
+                       RELATÓRIO DE DESENVOLVIMENTO - PSIGEN
 ================================================================================
-Este documento detalha o estado atual do desenvolvimento do PsicoFlow, um sistema
+Este documento detalha o estado atual do desenvolvimento do PsiGen, um sistema
 SaaS Multi-Tenant de alta performance projetado para psicólogos autônomos e
 clínicas de psicologia, com foco em segurança, LGPD e automação.
 
 --------------------------------------------------------------------------------
 1. ARQUITETURA E TECNOLOGIAS UTILIZADAS
 --------------------------------------------------------------------------------
-O PsicoFlow utiliza uma das pilhas tecnológicas mais modernas do ecossistema Next:
+O PsiGen utiliza uma das pilhas tecnológicas mais modernas do ecossistema Next:
 - Core: Next.js (React e TypeScript) com App Router para excelente performance,
   renderização híbrida (SSR/RSC/Client) e roteamento de arquivos nativo.
 - Banco de Dados & ORM: PostgreSQL de nível empresarial gerenciado pelo Prisma
@@ -79,7 +79,7 @@ autenticação JWT baseada em cookies HttpOnly totalmente restabelecida.
 Recentemente, identificamos e corrigimos um problema crítico onde o usuário
 ficava preso em um loop infinito de redirecionamento (307) para a tela de login.
 
-- Causa Raiz: O servidor de autenticação tentava setar o cookie psicoflow_token
+- Causa Raiz: O servidor de autenticação tentava setar o cookie psigen_token
   manualmente através da response retornada pelo helper successResponse
   (response.cookies.set). No Next.js App Router, modificações em uma instância de
   NextResponse pós-construção frequentemente falham em propagar o cabeçalho Set-Cookie.

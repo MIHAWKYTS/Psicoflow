@@ -113,7 +113,7 @@ export default function DashboardSidebar({
           Ψ
         </div>
         <div className="flex flex-col leading-none">
-          <span className="font-extrabold text-white text-sm tracking-tight">PsicoFlow</span>
+          <span className="font-extrabold text-white text-sm tracking-tight">PsiGen</span>
           <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest mt-0.5">
             Gestão Clínica
           </span>

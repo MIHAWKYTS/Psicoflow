@@ -60,7 +60,7 @@ export default function AdminLoginPage() {
               required
               autoComplete="email"
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-violet-500 focus:outline-none"
-              placeholder="admin@psicoflow.com"
+              placeholder="admin@psigen.com"
             />
           </div>
 
