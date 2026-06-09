@@ -1,40 +1,70 @@
+import nodemailer from "nodemailer";
+
 interface SendEmailInput {
   to: string;
   subject: string;
   html: string;
 }
 
-const RESEND_API_URL = "https://api.resend.com/emails";
+// ─── TRANSPORTE ATIVO: Gmail SMTP via Nodemailer ───────────────────────────
+// Para reverter para Resend: comente este bloco e descomente o bloco Resend abaixo.
+// Variáveis necessárias: GMAIL_USER, GMAIL_APP_PASSWORD
+// App Password: myaccount.google.com → Segurança → Senhas de app
 
 export async function sendEmail({ to, subject, html }: SendEmailInput) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "PsiGen <no-reply@psigen.app>";
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
 
-  if (!apiKey) {
-    throw new Error("RESEND_API_KEY não configurada");
+  if (!user || !pass) {
+    throw new Error("GMAIL_USER e GMAIL_APP_PASSWORD devem estar configuradas no ambiente");
   }
 
-  const response = await fetch(RESEND_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject,
-      html,
-    }),
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user, pass },
   });
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Erro ao enviar e-mail: ${response.status} - ${errorBody}`);
-  }
-
-  return response.json();
+  await transporter.sendMail({
+    from: `PsiGen <${user}>`,
+    to,
+    subject,
+    html,
+  });
 }
+// ──────────────────────────────────────────────────────────────────────────
+
+// ─── TRANSPORTE ALTERNATIVO: Resend ───────────────────────────────────────
+// Para ativar: descomente este bloco e comente o bloco Gmail acima.
+// Variáveis necessárias: RESEND_API_KEY, EMAIL_FROM (opcional)
+// Requer domínio próprio verificado no Resend (ex: psigen.com.br)
+//
+// const RESEND_API_URL = "https://api.resend.com/emails";
+//
+// export async function sendEmail({ to, subject, html }: SendEmailInput) {
+//   const apiKey = process.env.RESEND_API_KEY;
+//   const from = process.env.EMAIL_FROM || "PsiGen <no-reply@psigen.app>";
+//
+//   if (!apiKey) {
+//     throw new Error("RESEND_API_KEY não configurada");
+//   }
+//
+//   const response = await fetch(RESEND_API_URL, {
+//     method: "POST",
+//     headers: {
+//       Authorization: `Bearer ${apiKey}`,
+//       "Content-Type": "application/json",
+//     },
+//     body: JSON.stringify({ from, to: [to], subject, html }),
+//   });
+//
+//   if (!response.ok) {
+//     const errorBody = await response.text();
+//     throw new Error(`Erro ao enviar e-mail: ${response.status} - ${errorBody}`);
+//   }
+//
+//   return response.json();
+// }
+// ──────────────────────────────────────────────────────────────────────────
 
 export function buildSessionReminderEmail(patientName: string, sessionDateText: string) {
   return `
