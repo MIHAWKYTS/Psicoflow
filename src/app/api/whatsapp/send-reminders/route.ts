@@ -78,7 +78,7 @@ async function processReminders(jobId: string, tenantId: string, dateStr?: strin
     });
 
     if (!instance) {
-      updateJob(jobId, { status: "error", error: "Nenhuma instância WhatsApp conectada para este tenant" });
+      updateJob(jobId, { status: "error", error: "Nenhuma instância WhatsApp conectada para esta clínica" });
       return;
     }
 
