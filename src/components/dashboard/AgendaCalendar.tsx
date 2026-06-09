@@ -28,7 +28,9 @@ import {
   getDay,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import SessionDetailsSidebar from "./SessionDetailsSidebar";
+import dynamic from "next/dynamic";
+
+const SessionDetailsSidebar = dynamic(() => import("./SessionDetailsSidebar"), { ssr: false });
 
 type Session = {
   id: string;

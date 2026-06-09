@@ -6,33 +6,51 @@ import { withAuth } from "@/lib/context";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
 import { createJob, updateJob } from "@/lib/reminder-jobs";
 import { v4 as uuidv4 } from "uuid";
-import { startOfDay, endOfDay, subHours } from "date-fns";
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function randomDelay() {
-  return delay(3000 + Math.random() * 2000);
+  return delay(1000 + Math.random() * 1000); // 1–2 s
 }
 
 // BRT = UTC-3
-function getBRTBounds() {
+function getBRTBounds(dateStr?: string) {
   const now = new Date();
   const brtOffset = -3 * 60 * 60 * 1000;
+
+  let targetDate: Date;
+  if (dateStr) {
+    // Parse the provided YYYY-MM-DD as a BRT calendar date
+    const [y, m, d] = dateStr.split("-").map(Number);
+    targetDate = new Date(Date.UTC(y, m - 1, d));
+  } else {
+    const brtNow = new Date(now.getTime() + brtOffset);
+    targetDate = new Date(
+      Date.UTC(brtNow.getUTCFullYear(), brtNow.getUTCMonth(), brtNow.getUTCDate())
+    );
+  }
+
+  const startUTC = new Date(targetDate.getTime() - brtOffset); // 03:00 UTC = 00:00 BRT
+  const endUTC = new Date(startUTC.getTime() + 86399999);       // 02:59:59 UTC next day
+
+  // If the target date is today (BRT), use now as lower bound to skip past sessions
   const brtNow = new Date(now.getTime() + brtOffset);
-  const brtMidnight = new Date(
+  const todayUTC = new Date(
     Date.UTC(brtNow.getUTCFullYear(), brtNow.getUTCMonth(), brtNow.getUTCDate())
   );
+  const isToday = targetDate.getTime() === todayUTC.getTime();
+
   return {
-    start: new Date(brtMidnight.getTime() - brtOffset),        // 03:00 UTC
-    end: new Date(brtMidnight.getTime() - brtOffset + 86399999), // next 02:59:59 UTC
+    start: isToday ? now : startUTC,
+    end: endUTC,
   };
 }
 
-async function processReminders(jobId: string, tenantId: string) {
+async function processReminders(jobId: string, tenantId: string, dateStr?: string) {
   try {
-    const { start, end } = getBRTBounds();
+    const { start, end } = getBRTBounds(dateStr);
 
     const sessions = await prisma.session.findMany({
       where: {
@@ -86,7 +104,7 @@ async function processReminders(jobId: string, tenantId: string) {
           },
           body: JSON.stringify({
             number: `55${digits}`,
-            text: `Olá, ${session.patient?.nome ?? "paciente"}! Este é um lembrete da sua consulta agendada para hoje. Até breve! 🌿`,
+            text: `Olá, ${session.patient?.nome ?? "paciente"}! Gostaria de confirmar a sessão que está marcada para ${new Date(session.dataHoraInicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}. Podemos confirmar?`,
           }),
         });
 
@@ -111,9 +129,12 @@ async function processReminders(jobId: string, tenantId: string) {
 }
 
 // ─── POST /api/whatsapp/send-reminders ───────────────────────
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
-    const { start, end } = getBRTBounds();
+    const body = await req.json().catch(() => ({}));
+    const dateStr: string | undefined = body?.date;
+
+    const { start, end } = getBRTBounds(dateStr);
 
     const eligible = await prisma.session.count({
       where: {
@@ -125,14 +146,13 @@ export async function POST(_req: NextRequest) {
     });
 
     if (eligible === 0) {
-      return errorResponse("Nenhuma sessão elegível para lembrete hoje.", 422);
+      return errorResponse("Nenhuma sessão elegível para lembrete.", 422);
     }
 
     const jobId = uuidv4();
     createJob(jobId, eligible);
 
-    // fire-and-forget
-    processReminders(jobId, ctx.tenantId).catch(console.error);
+    processReminders(jobId, ctx.tenantId, dateStr).catch(console.error);
 
     return successResponse({ jobId, total: eligible });
   });

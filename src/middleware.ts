@@ -78,7 +78,9 @@ export async function middleware(request: NextRequest) {
   );
   const isApiRoute = pathname.startsWith("/api");
   const isPublicApiRoute =
-    pathname.startsWith("/api/auth") || pathname.startsWith("/api/webhooks");
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/webhooks") ||
+    pathname.startsWith("/api/uploadthing");
 
   // Obter token do cookie
   const token = request.cookies.get("psicoflow_token")?.value;

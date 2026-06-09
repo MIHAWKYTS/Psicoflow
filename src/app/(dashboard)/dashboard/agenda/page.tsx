@@ -1,6 +1,12 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
+
+const AgendaReminderModal = dynamic(
+  () => import("@/components/dashboard/AgendaReminderModal"),
+  { ssr: false }
+);
 import {
   startOfMonth,
   endOfMonth,
@@ -92,6 +98,7 @@ export default function AgendaPage() {
 
   // Formulário de criação
   const [formPatientId, setFormPatientId] = useState("");
+  const [formDate, setFormDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [formStartTime, setFormStartTime] = useState("09:00");
   const [formEndTime, setFormEndTime] = useState("10:00");
   const [formStatus, setFormStatus] = useState<"agendada" | "realizada" | "cancelada" | "falta">("agendada");
@@ -100,6 +107,9 @@ export default function AgendaPage() {
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [reminderSending, setReminderSending] = useState(false);
   const [reminderDone, setReminderDone] = useState(false);
+  const [reminderDate, setReminderDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [reminderSessions, setReminderSessions] = useState<Session[]>([]);
+  const [reminderLoadingSessions, setReminderLoadingSessions] = useState(false);
   const [reminderProgress, setReminderProgress] = useState<{
     sent: number;
     skipped: number;
@@ -107,6 +117,11 @@ export default function AgendaPage() {
     status: string;
     error?: string;
   } | null>(null);
+
+  // WhatsApp individual
+  const [waSending, setWaSending] = useState(false);
+  const [waSuccess, setWaSuccess] = useState(false);
+  const [waError, setWaError] = useState("");
 
   // ─── CALENDÁRIO ───────────────────────────────────────────
   const monthStart = startOfMonth(currentMonth);
@@ -187,9 +202,32 @@ export default function AgendaPage() {
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const handleToday = () => setCurrentMonth(new Date());
 
+  // ─── LEMBRETES: fetch por data ────────────────────────────
+  const fetchReminderSessions = async (dateStr: string) => {
+    setReminderLoadingSessions(true);
+    try {
+      const dayStart = new Date(`${dateStr}T00:00:00`);
+      const dayEnd = new Date(`${dateStr}T23:59:59`);
+      const params = new URLSearchParams({
+        inicio: dayStart.toISOString(),
+        fim: dayEnd.toISOString(),
+      });
+      const res = await fetch(`/api/sessions?${params}`);
+      const data = await res.json();
+      setReminderSessions(
+        (data.data || []).map(normalizeSession).filter((s: Session) => s.status === "agendada")
+      );
+    } catch {
+      console.error("Erro ao buscar sessões do lembrete");
+    } finally {
+      setReminderLoadingSessions(false);
+    }
+  };
+
   // ─── SIDEBAR ─────────────────────────────────────────────
   const handleDayClick = (date: Date) => {
     setSelectedDate(date);
+    setFormDate(format(date, "yyyy-MM-dd"));
     setFormStartTime("09:00");
     setFormEndTime("10:00");
     setFormStatus("agendada");
@@ -201,6 +239,9 @@ export default function AgendaPage() {
   const handleSessionClick = (e: React.MouseEvent, session: Session) => {
     e.stopPropagation();
     setSelectedSession(session);
+    setWaSending(false);
+    setWaSuccess(false);
+    setWaError("");
     setSidebarMode("view");
     setIsSidebarOpen(true);
   };
@@ -208,15 +249,16 @@ export default function AgendaPage() {
   // ─── CRIAR AGENDAMENTO ────────────────────────────────────
   const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDate || !formPatientId) return;
+    if (!formPatientId) return;
 
     const [startH, startM] = formStartTime.split(":").map(Number);
     const [endH, endM] = formEndTime.split(":").map(Number);
 
-    const startISO = new Date(selectedDate);
+    const baseDate = new Date(`${formDate}T00:00:00`);
+    const startISO = new Date(baseDate);
     startISO.setHours(startH, startM, 0, 0);
 
-    const endISO = new Date(selectedDate);
+    const endISO = new Date(baseDate);
     endISO.setHours(endH, endM, 0, 0);
 
     setSaving(true);
@@ -311,15 +353,48 @@ export default function AgendaPage() {
 
   // ─── LEMBRETES EM MASSA ───────────────────────────────────
   const handleOpenReminderModal = () => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    setReminderDate(today);
     setReminderProgress(null);
     setReminderDone(false);
     setShowReminderModal(true);
+    fetchReminderSessions(today);
+  };
+
+  // ─── WHATSAPP INDIVIDUAL ──────────────────────────────────
+  const handleSendSingle = async () => {
+    if (!selectedSession) return;
+    setWaSending(true);
+    setWaSuccess(false);
+    setWaError("");
+    try {
+      const res = await fetch("/api/whatsapp/send-single", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: selectedSession.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setWaError(data.error || "Erro ao enviar mensagem.");
+      } else {
+        setWaSuccess(true);
+        setSelectedSession({ ...selectedSession, lembreteEnviado: true });
+      }
+    } catch {
+      setWaError("Erro de conexão. Tente novamente.");
+    } finally {
+      setWaSending(false);
+    }
   };
 
   const handleSendReminders = async () => {
     setReminderSending(true);
     try {
-      const res = await fetch("/api/whatsapp/send-reminders", { method: "POST" });
+      const res = await fetch("/api/whatsapp/send-reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: reminderDate }),
+      });
       const data = await res.json();
       if (!res.ok) {
         setReminderProgress({
@@ -494,279 +569,197 @@ export default function AgendaPage() {
         </div>
       </div>
 
-      {/* ─── CALENDÁRIO MENSAL ─── */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800/80 shadow-sm overflow-hidden transition-all duration-300 relative">
-        {/* Loading overlay */}
-        {loadingSessions && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-slate-900/60 backdrop-blur-[2px]">
+      {/* ─── VISTA LISTA (mobile) ─── */}
+      <div className="block lg:hidden">
+        {loadingSessions ? (
+          <div className="flex items-center justify-center py-12">
             <Loader className="w-6 h-6 text-sky-500 animate-spin" />
           </div>
+        ) : filteredSessions.filter((s) => isSameMonth(parseISO(s.dataHoraInicio), currentMonth)).length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800 p-12 text-center text-slate-400 dark:text-slate-500 text-sm">
+            Nenhuma sessão neste mês.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {Object.entries(
+              filteredSessions
+                .filter((s) => isSameMonth(parseISO(s.dataHoraInicio), currentMonth))
+                .sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime())
+                .reduce<Record<string, Session[]>>((acc, session) => {
+                  const key = format(parseISO(session.dataHoraInicio), "yyyy-MM-dd");
+                  if (!acc[key]) acc[key] = [];
+                  acc[key].push(session);
+                  return acc;
+                }, {})
+            ).map(([dateKey, daySessions]) => {
+              const date = parseISO(dateKey);
+              const isDayToday = isToday(date);
+              return (
+                <div key={dateKey} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800 overflow-hidden shadow-sm">
+                  <div
+                    className={`px-4 py-2.5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors`}
+                    onClick={() => handleDayClick(date)}
+                  >
+                    <span className={`text-xs font-extrabold capitalize ${isDayToday ? "text-sky-500" : "text-slate-700 dark:text-slate-200"}`}>
+                      {format(date, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                      {isDayToday && <span className="ml-2 text-[9px] bg-sky-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">Hoje</span>}
+                    </span>
+                    <Plus className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {daySessions.map((session) => {
+                      const cfg = statusConfig[session.status];
+                      return (
+                        <div
+                          key={session.id}
+                          onClick={(e) => handleSessionClick(e, session)}
+                          className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors"
+                        >
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{session.patient.nome}</p>
+                            <p className="text-xs text-slate-400 font-medium">
+                              {format(parseISO(session.dataHoraInicio), "HH:mm")} – {format(parseISO(session.dataHoraFim), "HH:mm")}
+                            </p>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.badge} shrink-0`}>
+                            {cfg.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
+      </div>
 
-        {/* Dias da Semana */}
-        <div className="grid grid-cols-7 border-b border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 py-3 text-center">
-          {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((label) => (
-            <div
-              key={label}
-              className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest"
-            >
-              {label}
+      {/* ─── CALENDÁRIO MENSAL (desktop) ─── */}
+      <div className="hidden lg:block">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800/80 shadow-sm overflow-hidden transition-all duration-300 relative">
+          {/* Loading overlay */}
+          {loadingSessions && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-slate-900/60 backdrop-blur-[2px]">
+              <Loader className="w-6 h-6 text-sky-500 animate-spin" />
+            </div>
+          )}
+
+          {/* Dias da Semana */}
+          <div className="grid grid-cols-7 border-b border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 py-3 text-center">
+            {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((label) => (
+              <div
+                key={label}
+                className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest"
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {/* Grade de Dias */}
+          <div className="grid grid-cols-7 divide-x divide-y divide-slate-150 dark:divide-slate-800 bg-slate-150/40 dark:bg-slate-800/20">
+            {days.map((day, idx) => {
+              const isCurrentMonth = isSameMonth(day, currentMonth);
+              const isDayToday = isToday(day);
+
+              const daySessions = filteredSessions.filter((session) =>
+                isSameDay(parseISO(session.dataHoraInicio), day)
+              );
+              const sortedSessions = [...daySessions].sort(
+                (a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
+              );
+
+              return (
+                <div
+                  key={day.toString() + idx}
+                  onClick={() => handleDayClick(day)}
+                  className={`min-h-[120px] bg-white dark:bg-slate-900 p-2 flex flex-col gap-1.5 transition-all select-none relative group cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-900/40 ${
+                    !isCurrentMonth ? "bg-slate-50/40 dark:bg-slate-950/10 opacity-40" : ""
+                  } ${
+                    isDayToday ? "ring-2 ring-sky-500 ring-inset dark:ring-sky-500 bg-sky-500/[0.01]" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    {isDayToday ? (
+                      <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-sky-500 text-white tracking-wider">
+                        Hoje
+                      </span>
+                    ) : (
+                      <div />
+                    )}
+                    <span
+                      className={`text-xs font-extrabold px-1.5 py-0.5 rounded-lg ${
+                        isDayToday ? "text-sky-500" : "text-slate-600 dark:text-slate-400"
+                      }`}
+                    >
+                      {format(day, "d")}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[85px] no-scrollbar">
+                    {sortedSessions.map((session) => {
+                      const hora = format(parseISO(session.dataHoraInicio), "HH:mm");
+                      const cfg = statusConfig[session.status];
+
+                      return (
+                        <div
+                          key={session.id}
+                          onClick={(e) => handleSessionClick(e, session)}
+                          className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 transition-all truncate shadow-sm shrink-0 leading-none ${cfg.pill}`}
+                          title={`${hora} - ${session.patient.nome} (${cfg.label})`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} shrink-0`} />
+                          <span className="text-[9px] opacity-80 shrink-0 font-extrabold">{hora}</span>
+                          <span className="truncate flex-1">{session.patient.nome}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <span className="p-1 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-500 border border-sky-200/40 dark:border-sky-900/30 flex items-center justify-center">
+                      <Plus className="w-3 h-3" />
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ─── LEGENDA ─── */}
+        <div className="flex flex-wrap items-center justify-center gap-6 py-2">
+          <span className="text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest mr-2">
+            Legenda:
+          </span>
+          {Object.entries(statusConfig).map(([status, cfg]) => (
+            <div key={status} className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${cfg.dot}`} />
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-400 capitalize">
+                {cfg.label}
+              </span>
             </div>
           ))}
         </div>
-
-        {/* Grade de Dias */}
-        <div className="grid grid-cols-7 divide-x divide-y divide-slate-150 dark:divide-slate-800 bg-slate-150/40 dark:bg-slate-800/20">
-          {days.map((day, idx) => {
-            const isCurrentMonth = isSameMonth(day, currentMonth);
-            const isDayToday = isToday(day);
-
-            const daySessions = filteredSessions.filter((session) =>
-              isSameDay(parseISO(session.dataHoraInicio), day)
-            );
-            const sortedSessions = [...daySessions].sort(
-              (a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
-            );
-
-            return (
-              <div
-                key={day.toString() + idx}
-                onClick={() => handleDayClick(day)}
-                className={`min-h-[120px] bg-white dark:bg-slate-900 p-2 flex flex-col gap-1.5 transition-all select-none relative group cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-900/40 ${
-                  !isCurrentMonth ? "bg-slate-50/40 dark:bg-slate-950/10 opacity-40" : ""
-                } ${
-                  isDayToday ? "ring-2 ring-sky-500 ring-inset dark:ring-sky-500 bg-sky-500/[0.01]" : ""
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  {isDayToday ? (
-                    <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-sky-500 text-white tracking-wider">
-                      Hoje
-                    </span>
-                  ) : (
-                    <div />
-                  )}
-                  <span
-                    className={`text-xs font-extrabold px-1.5 py-0.5 rounded-lg ${
-                      isDayToday ? "text-sky-500" : "text-slate-600 dark:text-slate-400"
-                    }`}
-                  >
-                    {format(day, "d")}
-                  </span>
-                </div>
-
-                <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[85px] no-scrollbar">
-                  {sortedSessions.map((session) => {
-                    const hora = format(parseISO(session.dataHoraInicio), "HH:mm");
-                    const cfg = statusConfig[session.status];
-
-                    return (
-                      <div
-                        key={session.id}
-                        onClick={(e) => handleSessionClick(e, session)}
-                        className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 transition-all truncate shadow-sm shrink-0 leading-none ${cfg.pill}`}
-                        title={`${hora} - ${session.patient.nome} (${cfg.label})`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} shrink-0`} />
-                        <span className="text-[9px] opacity-80 shrink-0 font-extrabold">{hora}</span>
-                        <span className="truncate flex-1">{session.patient.nome}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  <span className="p-1 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-500 border border-sky-200/40 dark:border-sky-900/30 flex items-center justify-center">
-                    <Plus className="w-3 h-3" />
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ─── LEGENDA ─── */}
-      <div className="flex flex-wrap items-center justify-center gap-6 py-2">
-        <span className="text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest mr-2">
-          Legenda:
-        </span>
-        {Object.entries(statusConfig).map(([status, cfg]) => (
-          <div key={status} className="flex items-center gap-2">
-            <span className={`w-2.5 h-2.5 rounded-full ${cfg.dot}`} />
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-400 capitalize">
-              {cfg.label}
-            </span>
-          </div>
-        ))}
       </div>
 
       {/* ─── MODAL DE LEMBRETES EM MASSA ─── */}
       {showReminderModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-            onClick={() => !reminderSending && setShowReminderModal(false)}
-          />
-          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-slate-100 dark:border-slate-800 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
-                    <MessageSquare className="w-4 h-4" />
-                  </span>
-                  <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-base leading-none">
-                    Lembretes do Dia
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 leading-snug">
-                  Envia uma mensagem de confirmação no WhatsApp para cada paciente agendado hoje.
-                </p>
-              </div>
-              {!reminderSending && (
-                <button
-                  onClick={() => setShowReminderModal(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-
-            <div className="p-5 space-y-4 max-h-80 overflow-y-auto">
-              {todayAgendadas.length === 0 ? (
-                <div className="text-center py-6 space-y-2">
-                  <CalendarDays className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto" />
-                  <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
-                    Nenhum paciente agendado para hoje.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    {todayAgendadas.length} paciente{todayAgendadas.length > 1 ? "s" : ""} receberão a mensagem:
-                  </p>
-                  {todayAgendadas.map((s) => (
-                    <div
-                      key={s.id}
-                      className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-950/30 border border-slate-100 dark:border-slate-800"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-sm shrink-0">
-                        {s.patient.nome.charAt(0)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
-                          {s.patient.nome}
-                        </p>
-                        <p className="text-[10px] text-slate-400">
-                          {format(parseISO(s.dataHoraInicio), "HH:mm")} –{" "}
-                          {format(parseISO(s.dataHoraFim), "HH:mm")}
-                        </p>
-                      </div>
-                      {s.lembreteEnviado && (
-                        <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
-                          Já enviado
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {reminderProgress && (
-                <div
-                  className={`p-4 rounded-xl border space-y-2 ${
-                    reminderProgress.status === "error"
-                      ? "bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/30"
-                      : reminderProgress.status === "done"
-                      ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/30"
-                      : "bg-sky-50 dark:bg-sky-950/20 border-sky-200 dark:border-sky-900/30"
-                  }`}
-                >
-                  {reminderProgress.status === "error" ? (
-                    <p className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      {reminderProgress.error || "Erro ao enviar."}
-                    </p>
-                  ) : reminderProgress.status === "done" ? (
-                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 shrink-0" />
-                      Concluído! {reminderProgress.sent} enviado
-                      {reminderProgress.sent !== 1 ? "s" : ""}
-                      {reminderProgress.skipped > 0 &&
-                        `, ${reminderProgress.skipped} ignorado${reminderProgress.skipped !== 1 ? "s" : ""}`}
-                      .
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs font-bold text-sky-600 dark:text-sky-400">
-                        <span className="flex items-center gap-2">
-                          <Loader className="w-3.5 h-3.5 animate-spin shrink-0" />
-                          Enviando mensagens...
-                        </span>
-                        <span>
-                          {reminderProgress.sent}/{reminderProgress.total}
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full bg-sky-200 dark:bg-sky-900/30 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-sky-500 rounded-full transition-all duration-500"
-                          style={{
-                            width: `${
-                              reminderProgress.total > 0
-                                ? (reminderProgress.sent / reminderProgress.total) * 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="p-5 border-t border-slate-100 dark:border-slate-800 flex gap-3">
-              {reminderDone ? (
-                <button
-                  onClick={() => setShowReminderModal(false)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
-                >
-                  Fechar
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setShowReminderModal(false)}
-                    disabled={reminderSending}
-                    className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-850 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSendReminders}
-                    disabled={reminderSending || todayAgendadas.length === 0}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {reminderSending ? (
-                      <>
-                        <Loader className="w-3.5 h-3.5 animate-spin" />
-                        Enviando...
-                      </>
-                    ) : (
-                      <>
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        Confirmar e Enviar
-                      </>
-                    )}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+        <AgendaReminderModal
+          onClose={() => setShowReminderModal(false)}
+          reminderSending={reminderSending}
+          reminderDone={reminderDone}
+          reminderDate={reminderDate}
+          setReminderDate={setReminderDate}
+          setReminderProgress={setReminderProgress}
+          fetchReminderSessions={fetchReminderSessions}
+          reminderLoadingSessions={reminderLoadingSessions}
+          reminderSessions={reminderSessions}
+          reminderProgress={reminderProgress}
+          handleSendReminders={handleSendReminders}
+        />
       )}
 
       {/* ─── SIDEBAR DESLIZANTE (DRAWER) ─── */}
@@ -787,7 +780,7 @@ export default function AgendaPage() {
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 leading-none">
                   {sidebarMode === "view"
                     ? "Informações clínicas e alteração de presença."
-                    : `Cadastrar sessão para o dia ${format(selectedDate!, "dd/MM/yyyy")}`}
+                    : `Cadastrar sessão para o dia ${formDate ? format(new Date(`${formDate}T00:00:00`), "dd/MM/yyyy") : ""}`}
                 </p>
               </div>
               <button
@@ -915,24 +908,32 @@ export default function AgendaPage() {
 
                   {/* WhatsApp individual */}
                   {selectedSession.patient.telefoneWhatsapp && (
-                    <div className="pt-2">
-                      <a
-                        href={`https://api.whatsapp.com/send?phone=${selectedSession.patient.telefoneWhatsapp}&text=Ol%C3%A1%20${encodeURIComponent(
-                          selectedSession.patient.nome
-                        )}!%20Passando%20para%20confirmar%20nossa%20sess%C3%A3o%20de%20psicologia%20agendada%20para%20o%20dia%20${format(
-                          parseISO(selectedSession.dataHoraInicio),
-                          "dd/MM"
-                        )}%20%C3%A0s%20${format(
-                          parseISO(selectedSession.dataHoraInicio),
-                          "HH:mm"
-                        )}.%20At%C3%A9%20l%C3%A1!`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
-                      >
-                        <MessageSquare className="w-4.5 h-4.5" />
-                        <span>Confirmar por WhatsApp</span>
-                      </a>
+                    <div className="pt-2 space-y-2">
+                      {waError && (
+                        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          {waError}
+                        </div>
+                      )}
+                      {waSuccess ? (
+                        <div className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold text-xs rounded-xl">
+                          <CheckCircle className="w-4 h-4" />
+                          Mensagem enviada!
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleSendSingle}
+                          disabled={waSending}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          {waSending ? (
+                            <><Loader className="w-4 h-4 animate-spin" />Enviando...</>
+                          ) : (
+                            <><MessageSquare className="w-4 h-4" />Confirmar por WhatsApp</>
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -944,6 +945,23 @@ export default function AgendaPage() {
                       {sidebarError}
                     </div>
                   )}
+
+                  {/* Data */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider block">
+                      Data da Consulta:
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-3 h-4.5 w-4.5 text-slate-450" />
+                      <input
+                        type="date"
+                        value={formDate}
+                        onChange={(e) => setFormDate(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-bold cursor-text"
+                        required
+                      />
+                    </div>
+                  </div>
 
                   {/* Paciente */}
                   <div className="space-y-2">

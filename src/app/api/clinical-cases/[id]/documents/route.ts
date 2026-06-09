@@ -5,7 +5,7 @@ import { withAuth } from "@/lib/context";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
 
 const addDocumentSchema = z.object({
-  documentUrl: z.string().url("URL de documento inválida"),
+  documentUrl: z.string().min(1, "URL do documento é obrigatória"),
 });
 
 export async function POST(

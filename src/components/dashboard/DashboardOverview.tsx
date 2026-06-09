@@ -18,6 +18,7 @@ type Receivable = {
   dataVencimento: string;
   statusPagamento: string;
   categoria: string;
+  tipo: string;
 };
 
 function formatBRL(value: number) {
@@ -36,7 +37,7 @@ const STATUS_LABELS: Record<string, string> = {
   cancelado: "Cancelado",
 };
 
-export default function DashboardOverview() {
+export default function DashboardOverview({ role }: { role: string }) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [receivables, setReceivables] = useState<Receivable[]>([]);
   const [filterStatus, setFilterStatus] = useState("todos");
@@ -50,16 +51,19 @@ export default function DashboardOverview() {
       .catch(() => {});
   }, []);
 
-  // SSE para recebíveis
+  // Polling de recebíveis a cada 30s
   useEffect(() => {
-    const es = new EventSource("/api/dashboard/receivables/stream");
-    es.onmessage = (e) => {
+    let cancelled = false;
+    async function load() {
       try {
-        const { transactions } = JSON.parse(e.data);
-        setReceivables(transactions);
+        const r = await fetch("/api/dashboard/receivables");
+        const d = await r.json();
+        if (!cancelled && d.success) setReceivables(d.data.transactions ?? []);
       } catch {}
-    };
-    return () => es.close();
+    }
+    load();
+    const id = setInterval(load, 30_000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   const kpis = [
@@ -145,7 +149,8 @@ export default function DashboardOverview() {
         })}
       </div>
 
-      {/* Tabela de Recebíveis */}
+      {/* Tabela de Recebíveis — apenas psicologo_admin */}
+      {role !== "psicologo_admin" ? null : (
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="space-y-1 self-start">
@@ -186,11 +191,12 @@ export default function DashboardOverview() {
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                <th className="px-6 py-4">Paciente</th>
-                <th className="px-6 py-4">Categoria</th>
-                <th className="px-6 py-4">Valor</th>
-                <th className="px-6 py-4">Data Vencimento</th>
-                <th className="px-6 py-4 text-right">Status</th>
+                <th className="px-4 sm:px-6 py-4">Paciente</th>
+                <th className="hidden sm:table-cell px-6 py-4">Tipo</th>
+                <th className="hidden sm:table-cell px-6 py-4">Categoria</th>
+                <th className="px-4 sm:px-6 py-4">Valor</th>
+                <th className="hidden sm:table-cell px-6 py-4">Data Vencimento</th>
+                <th className="px-4 sm:px-6 py-4 text-right">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-sm">
@@ -200,19 +206,24 @@ export default function DashboardOverview() {
                     key={r.id}
                     className="hover:bg-slate-50/50 dark:hover:bg-slate-950/10 transition-colors"
                   >
-                    <td className="px-6 py-4 font-semibold text-slate-800 dark:text-slate-100">
+                    <td className="px-4 sm:px-6 py-4 font-semibold text-slate-800 dark:text-slate-100">
                       {r.patient?.nome ?? "—"}
                     </td>
-                    <td className="px-6 py-4 text-slate-500 text-xs font-medium dark:text-slate-400 capitalize">
+                    <td className="hidden sm:table-cell px-6 py-4 text-xs font-semibold capitalize">
+                      <span className={r.tipo === "receita" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                        {r.tipo === "receita" ? "Receita" : "Despesa"}
+                      </span>
+                    </td>
+                    <td className="hidden sm:table-cell px-6 py-4 text-slate-500 text-xs font-medium dark:text-slate-400 capitalize">
                       {r.categoria}
                     </td>
-                    <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">
+                    <td className="px-4 sm:px-6 py-4 font-bold text-slate-800 dark:text-slate-200">
                       {formatBRL(Number(r.valor))}
                     </td>
-                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
+                    <td className="hidden sm:table-cell px-6 py-4 text-slate-500 dark:text-slate-400">
                       {new Date(r.dataVencimento).toLocaleDateString("pt-BR")}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 sm:px-6 py-4 text-right">
                       <span
                         className={`inline-flex px-2.5 py-1 text-xs font-bold rounded-full border ${
                           STATUS_COLORS[r.statusPagamento] ?? STATUS_COLORS["cancelado"]
@@ -225,7 +236,7 @@ export default function DashboardOverview() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
                     {receivables.length === 0
                       ? "Conectando..."
                       : "Nenhum recebível correspondente ao filtro."}
@@ -236,6 +247,7 @@ export default function DashboardOverview() {
           </table>
         </div>
       </div>
+      )}
     </div>
   );
 }
