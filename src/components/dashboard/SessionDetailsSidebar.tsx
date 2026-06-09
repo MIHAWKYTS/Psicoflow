@@ -63,7 +63,7 @@ export default function SessionDetailsSidebar({
   };
 
   const statusColors = {
-    agendada: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/50",
+    agendada: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900/50",
     realizada: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50",
     cancelada: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/50",
     falta: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50",
@@ -115,7 +115,7 @@ export default function SessionDetailsSidebar({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Card Principal do Paciente */}
           <div className="flex items-start gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-            <div className="w-12 h-12 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold text-lg">
+            <div className="w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
               {session.patient.nome.charAt(0).toUpperCase()}
             </div>
             <div className="space-y-1">
@@ -136,11 +136,11 @@ export default function SessionDetailsSidebar({
             </h4>
             <div className="space-y-2.5">
               <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                <Calendar className="w-5 h-5 text-sky-500" />
+                <Calendar className="w-5 h-5 text-indigo-500" />
                 <span className="text-sm capitalize font-medium">{formatData(dataInicio)}</span>
               </div>
               <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                <Clock className="w-5 h-5 text-sky-500" />
+                <Clock className="w-5 h-5 text-indigo-500" />
                 <span className="text-sm font-medium">
                   {formatHora(dataInicio)} - {formatHora(dataFim)}
                 </span>

@@ -115,7 +115,7 @@ export default function EvolucaoForm({ recordId, patientId, onRecordCreated, onE
   }
 
   const textareaClass =
-    "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500";
+    "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500";
   const labelClass = "block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1";
   const errorClass = "text-xs text-rose-500 mt-1";
 
@@ -125,7 +125,7 @@ export default function EvolucaoForm({ recordId, patientId, onRecordCreated, onE
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-2 px-4 py-3 text-sm font-semibold text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/20 transition-colors"
+        className="w-full flex items-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-colors"
       >
         <PlusCircle className="w-4 h-4" />
         Registrar Nova Evolução
@@ -153,7 +153,7 @@ export default function EvolucaoForm({ recordId, patientId, onRecordCreated, onE
               type="datetime-local"
               value={form.dataHora}
               onChange={(e) => set("dataHora", e.target.value)}
-              className="px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+              className="px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
             {errors.dataHora && <p className={errorClass}>{errors.dataHora}</p>}
           </div>
@@ -219,7 +219,7 @@ export default function EvolucaoForm({ recordId, patientId, onRecordCreated, onE
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 text-sm rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold transition-all"
+              className="px-5 py-2 text-sm rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold transition-all"
             >
               {loading ? "Salvando..." : "Salvar Evolução"}
             </button>
