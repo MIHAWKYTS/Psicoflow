@@ -42,14 +42,52 @@ export default function AuthLayout({
           PsicoFlow v1.0.0
         </div>
 
-        {/* Citação Inspiradora do Psicoterapeuta */}
-        <div className="relative z-10 max-w-md space-y-4">
-          <blockquote className="text-2xl font-medium text-white/90 leading-normal tracking-tight italic">
-            "O curioso paradoxo é que quando eu me aceito como sou, então eu posso mudar."
-          </blockquote>
-          <cite className="block text-sm font-bold text-sky-200 dark:text-sky-400 not-italic uppercase tracking-widest">
-            — Carl Rogers
-          </cite>
+        {/* Conteúdo Central */}
+        <div className="relative z-10 max-w-md space-y-8">
+          {/* Badge de trial */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-bold uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+            15 dias grátis · Sem cartão de crédito
+          </div>
+
+          <div className="space-y-3">
+            <h2 className="text-3xl font-extrabold text-white leading-tight tracking-tight">
+              Tudo que você precisa para gerir sua clínica.
+            </h2>
+            <p className="text-sky-100 dark:text-slate-400 text-sm leading-relaxed">
+              Agenda, prontuários, financeiro e muito mais — em uma plataforma segura e feita para psicólogos.
+            </p>
+          </div>
+
+          {/* Lista de benefícios */}
+          <ul className="space-y-3">
+            {[
+              "Agenda mensal com lembretes via WhatsApp",
+              "Prontuários clínicos com controle de acesso",
+              "Financeiro completo: receitas e despesas",
+              "Multi-usuário: psicólogos e secretárias",
+              "Dados 100% isolados por clínica (LGPD)",
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-3 text-sm text-white/90">
+                <span className="mt-0.5 w-4 h-4 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                  <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </span>
+                {item}
+              </li>
+            ))}
+          </ul>
+
+          {/* Citação */}
+          <div className="pt-2 border-t border-white/20">
+            <blockquote className="text-sm font-medium text-white/75 leading-relaxed italic">
+              "O curioso paradoxo é que quando eu me aceito como sou, então eu posso mudar."
+            </blockquote>
+            <cite className="block text-xs font-bold text-sky-200 dark:text-sky-400 not-italic uppercase tracking-widest mt-2">
+              — Carl Rogers
+            </cite>
+          </div>
         </div>
 
         {/* Footer */}

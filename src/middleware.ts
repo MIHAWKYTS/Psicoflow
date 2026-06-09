@@ -78,7 +78,9 @@ export async function middleware(request: NextRequest) {
   );
   const isApiRoute = pathname.startsWith("/api");
   const isPublicApiRoute =
-    pathname.startsWith("/api/auth") || pathname.startsWith("/api/webhooks");
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/webhooks") ||
+    pathname.startsWith("/api/uploadthing");
 
   // Obter token do cookie
   const token = request.cookies.get("psicoflow_token")?.value;
@@ -123,6 +125,25 @@ export async function middleware(request: NextRequest) {
           { success: false, error: "Conta suspensa. Entre em contato com o suporte." },
           { status: 403 }
         );
+      }
+    }
+
+    // 2.5. Bloqueio por trial expirado (checado via dataFimTrial no JWT, sem acesso ao banco)
+    if (statusAssinatura === "trial") {
+      const dataFimTrial = payload.dataFimTrial as string | undefined;
+      if (dataFimTrial && new Date(dataFimTrial) < new Date()) {
+        const isAllowedRoute = INADIMPLENTE_ALLOWED_ROUTES.some((route) =>
+          pathname.startsWith(route)
+        );
+        if (!isAllowedRoute && pathname.startsWith("/dashboard")) {
+          return NextResponse.redirect(new URL("/dashboard/pagamento", request.url));
+        }
+        if (!isAllowedRoute && isApiRoute && !isPublicApiRoute) {
+          return NextResponse.json(
+            { success: false, error: "Período de teste expirado. Assine para continuar usando o PsicoFlow." },
+            { status: 402 }
+          );
+        }
       }
     }
 

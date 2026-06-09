@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
             id: true,
             nome: true,
             telefoneWhatsapp: true,
+            valorSessaoPadrao: true,
           },
         },
       },

@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
+
+const AgendaReminderModal = dynamic(
+  () => import("@/components/dashboard/AgendaReminderModal"),
+  { ssr: false }
+);
 import {
   startOfMonth,
   endOfMonth,
@@ -35,157 +41,147 @@ import {
   FileText,
   CalendarDays,
   Sparkles,
-  Loader2,
+  Loader2 as Loader,
 } from "lucide-react";
 
-// ─── DEFINIÇÕES E TIPAGENS ───────────────────────────────────
+// ─── TIPOS ───────────────────────────────────────────────────
 
-interface PatientMock {
+interface Patient {
   id: string;
   nome: string;
-  telefoneWhatsapp: string;
-  valorSessaoPadrao: number;
+  telefoneWhatsapp?: string | null;
+  valorSessaoPadrao?: number | null;
 }
 
-interface SessionMock {
+interface Session {
   id: string;
   tenantId: string;
   patientId: string;
-  dataHoraInicio: string; // ISO String
-  dataHoraFim: string; // ISO String
+  dataHoraInicio: string;
+  dataHoraFim: string;
   status: "agendada" | "realizada" | "cancelada" | "falta";
   lembreteEnviado: boolean;
-  observacoes?: string;
-  patient: PatientMock;
+  patient: Patient;
 }
 
-// ─── DADOS DE MOCK INICIAIS (Modelo Session/Patient Prisma) ──
+function normalizeSession(s: any): Session {
+  return {
+    ...s,
+    patient: {
+      ...s.patient,
+      valorSessaoPadrao:
+        s.patient?.valorSessaoPadrao != null
+          ? parseFloat(String(s.patient.valorSessaoPadrao))
+          : null,
+    },
+  };
+}
 
-const MOCK_PATIENTS: PatientMock[] = [
-  { id: "p1", nome: "Ana Beatriz Silva", telefoneWhatsapp: "+5511987654321", valorSessaoPadrao: 150.0 },
-  { id: "p2", nome: "Carlos Eduardo Costa", telefoneWhatsapp: "+5521998887766", valorSessaoPadrao: 180.0 },
-  { id: "p3", nome: "Juliana Santos", telefoneWhatsapp: "+5531977776655", valorSessaoPadrao: 160.0 },
-  { id: "p4", nome: "Mariana Souza", telefoneWhatsapp: "+5511955554433", valorSessaoPadrao: 150.0 },
-  { id: "p5", nome: "Rodrigo Almeida", telefoneWhatsapp: "+5519966665544", valorSessaoPadrao: 200.0 },
-];
-
-const INITIAL_SESSIONS: SessionMock[] = [
-  {
-    id: "s1",
-    tenantId: "t1",
-    patientId: "p1",
-    dataHoraInicio: "2026-05-20T09:00:00Z",
-    dataHoraFim: "2026-05-20T10:00:00Z",
-    status: "realizada",
-    lembreteEnviado: true,
-    observacoes: "Paciente evoluiu bem na discussão sobre ansiedade acadêmica.",
-    patient: MOCK_PATIENTS[0],
-  },
-  {
-    id: "s2",
-    tenantId: "t1",
-    patientId: "p2",
-    dataHoraInicio: "2026-05-20T11:30:00Z",
-    dataHoraFim: "2026-05-20T12:30:00Z",
-    status: "agendada",
-    lembreteEnviado: false,
-    observacoes: "Primeira sessão após a triagem. Focar em anamnese.",
-    patient: MOCK_PATIENTS[1],
-  },
-  {
-    id: "s3",
-    tenantId: "t1",
-    patientId: "p3",
-    dataHoraInicio: "2026-05-20T14:00:00Z",
-    dataHoraFim: "2026-05-20T15:00:00Z",
-    status: "falta",
-    lembreteEnviado: true,
-    observacoes: "Paciente não compareceu e não justificou a tempo.",
-    patient: MOCK_PATIENTS[2],
-  },
-  {
-    id: "s4",
-    tenantId: "t1",
-    patientId: "p4",
-    dataHoraInicio: "2026-05-21T10:00:00Z",
-    dataHoraFim: "2026-05-21T11:00:00Z",
-    status: "agendada",
-    lembreteEnviado: true,
-    observacoes: "Discutir conflito familiar trazido na sessão anterior.",
-    patient: MOCK_PATIENTS[3],
-  },
-  {
-    id: "s5",
-    tenantId: "t1",
-    patientId: "p5",
-    dataHoraInicio: "2026-05-21T16:00:00Z",
-    dataHoraFim: "2026-05-21T17:00:00Z",
-    status: "cancelada",
-    lembreteEnviado: false,
-    observacoes: "Desmarcado pelo paciente por motivos de trabalho.",
-    patient: MOCK_PATIENTS[4],
-  },
-  {
-    id: "s6",
-    tenantId: "t1",
-    patientId: "p1",
-    dataHoraInicio: "2026-05-15T09:00:00Z",
-    dataHoraFim: "2026-05-15T10:00:00Z",
-    status: "realizada",
-    lembreteEnviado: true,
-    patient: MOCK_PATIENTS[0],
-  },
-  {
-    id: "s7",
-    tenantId: "t1",
-    patientId: "p3",
-    dataHoraInicio: "2026-05-27T14:00:00Z",
-    dataHoraFim: "2026-05-27T15:00:00Z",
-    status: "agendada",
-    lembreteEnviado: false,
-    patient: MOCK_PATIENTS[2],
-  },
-];
+// ─── COMPONENTE PRINCIPAL ────────────────────────────────────
 
 export default function AgendaPage() {
-  // ─── ESTADOS PRINCIPAIS ────────────────────────────────────
+  // ─── ESTADOS ──────────────────────────────────────────────
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const [sessions, setSessions] = useState<SessionMock[]>(INITIAL_SESSIONS);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("todos");
 
-  // Estados da Sidebar (Drawer)
+  // Sidebar (Drawer)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<"view" | "create">("view");
-  const [selectedSession, setSelectedSession] = useState<SessionMock | null>(null);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [sidebarError, setSidebarError] = useState("");
 
-  // Estados do Formulário de Criação
-  const [formPatientId, setFormPatientId] = useState(MOCK_PATIENTS[0].id);
+  // Formulário de criação
+  const [formPatientId, setFormPatientId] = useState("");
+  const [formDate, setFormDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [formStartTime, setFormStartTime] = useState("09:00");
   const [formEndTime, setFormEndTime] = useState("10:00");
   const [formStatus, setFormStatus] = useState<"agendada" | "realizada" | "cancelada" | "falta">("agendada");
-  const [formNotes, setFormNotes] = useState("");
 
-  // ─── Estados do Disparo de Lembretes WhatsApp ─────────────────────────────
-  const [isSendingReminders, setIsSendingReminders] = useState(false);
-  const [reminderToast, setReminderToast] = useState<{
-    type: "progress" | "success" | "error";
-    message: string;
+  // Modal de lembretes em massa
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [reminderSending, setReminderSending] = useState(false);
+  const [reminderDone, setReminderDone] = useState(false);
+  const [reminderDate, setReminderDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [reminderSessions, setReminderSessions] = useState<Session[]>([]);
+  const [reminderLoadingSessions, setReminderLoadingSessions] = useState(false);
+  const [reminderProgress, setReminderProgress] = useState<{
+    sent: number;
+    skipped: number;
+    total: number;
+    status: string;
+    error?: string;
   } | null>(null);
-  const reminderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ─── CÁLCULOS DO CALENDÁRIO MENSAL (date-fns) ───────────────
+  // WhatsApp individual
+  const [waSending, setWaSending] = useState(false);
+  const [waSuccess, setWaSuccess] = useState(false);
+  const [waError, setWaError] = useState("");
+
+  // ─── CALENDÁRIO ───────────────────────────────────────────
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 0 }); // Domingo
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 }); // Sábado
+  const startDate = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  const days = useMemo(() => {
-    return eachDayOfInterval({ start: startDate, end: endDate });
-  }, [startDate, endDate]);
+  const days = useMemo(
+    () => eachDayOfInterval({ start: startDate, end: endDate }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentMonth]
+  );
 
-  // ─── FILTRAGEM E INDEXAÇÃO DAS SESSÕES ─────────────────────
+  // ─── FETCH PACIENTES (uma vez) ────────────────────────────
+  useEffect(() => {
+    async function fetchPatients() {
+      try {
+        const res = await fetch("/api/patients?status=ativo&limit=500");
+        const data = await res.json();
+        const list: Patient[] = (data.data?.items || []).map((p: any) => ({
+          id: p.id,
+          nome: p.nome,
+          telefoneWhatsapp: p.telefoneWhatsapp ?? null,
+          valorSessaoPadrao:
+            p.valorSessaoPadrao != null ? parseFloat(String(p.valorSessaoPadrao)) : null,
+        }));
+        setPatients(list);
+        if (list.length > 0) setFormPatientId(list[0].id);
+      } catch {
+        console.error("Erro ao buscar pacientes");
+      }
+    }
+    fetchPatients();
+  }, []);
+
+  // ─── FETCH SESSÕES (por mês) ──────────────────────────────
+  useEffect(() => {
+    const calStart = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 0 });
+    const calEnd = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 0 });
+
+    async function fetchSessions() {
+      setLoadingSessions(true);
+      try {
+        const params = new URLSearchParams({
+          inicio: calStart.toISOString(),
+          fim: calEnd.toISOString(),
+        });
+        const res = await fetch(`/api/sessions?${params}`);
+        const data = await res.json();
+        setSessions((data.data || []).map(normalizeSession));
+      } catch {
+        console.error("Erro ao buscar sessões");
+      } finally {
+        setLoadingSessions(false);
+      }
+    }
+    fetchSessions();
+  }, [currentMonth]);
+
+  // ─── FILTRAGEM ────────────────────────────────────────────
   const filteredSessions = useMemo(() => {
     return sessions.filter((s) => {
       const matchesSearch = s.patient.nome.toLowerCase().includes(search.toLowerCase());
@@ -194,202 +190,254 @@ export default function AgendaPage() {
     });
   }, [sessions, search, filterStatus]);
 
-  // Indexação antecipada para evitar loop O(N*D) no calendário
-  const sessionsByDate = useMemo(() => {
-    const dictionary: Record<string, SessionMock[]> = {};
-    filteredSessions.forEach((session) => {
-      const dateKey = format(parseISO(session.dataHoraInicio), "yyyy-MM-dd");
-      if (!dictionary[dateKey]) {
-        dictionary[dateKey] = [];
-      }
-      dictionary[dateKey].push(session);
-    });
-    return dictionary;
-  }, [filteredSessions]);
+  const todayAgendadas = useMemo(() => {
+    const today = new Date();
+    return sessions.filter(
+      (s) => s.status === "agendada" && isSameDay(parseISO(s.dataHoraInicio), today)
+    );
+  }, [sessions]);
 
-  // Navegação de Meses
+  // ─── NAVEGAÇÃO DE MÊS ────────────────────────────────────
   const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const handleToday = () => setCurrentMonth(new Date());
 
-  // ─── AÇÕES DA SIDEBAR / AGENDA ─────────────────────────────
-  
-  // Abrir sidebar para criação de novo agendamento
+  // ─── LEMBRETES: fetch por data ────────────────────────────
+  const fetchReminderSessions = async (dateStr: string) => {
+    setReminderLoadingSessions(true);
+    try {
+      const dayStart = new Date(`${dateStr}T00:00:00`);
+      const dayEnd = new Date(`${dateStr}T23:59:59`);
+      const params = new URLSearchParams({
+        inicio: dayStart.toISOString(),
+        fim: dayEnd.toISOString(),
+      });
+      const res = await fetch(`/api/sessions?${params}`);
+      const data = await res.json();
+      setReminderSessions(
+        (data.data || []).map(normalizeSession).filter((s: Session) => s.status === "agendada")
+      );
+    } catch {
+      console.error("Erro ao buscar sessões do lembrete");
+    } finally {
+      setReminderLoadingSessions(false);
+    }
+  };
+
+  // ─── SIDEBAR ─────────────────────────────────────────────
   const handleDayClick = (date: Date) => {
     setSelectedDate(date);
+    setFormDate(format(date, "yyyy-MM-dd"));
     setFormStartTime("09:00");
     setFormEndTime("10:00");
     setFormStatus("agendada");
-    setFormNotes("");
+    setSidebarError("");
     setSidebarMode("create");
     setIsSidebarOpen(true);
   };
 
-  // Abrir sidebar para visualizar detalhes
-  const handleSessionClick = (e: React.MouseEvent, session: SessionMock) => {
-    e.stopPropagation(); // Evita disparar o clique na célula do dia
+  const handleSessionClick = (e: React.MouseEvent, session: Session) => {
+    e.stopPropagation();
     setSelectedSession(session);
+    setWaSending(false);
+    setWaSuccess(false);
+    setWaError("");
     setSidebarMode("view");
     setIsSidebarOpen(true);
   };
 
-  // Salvar novo agendamento
-  const handleCreateAppointment = (e: React.FormEvent) => {
+  // ─── CRIAR AGENDAMENTO ────────────────────────────────────
+  const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDate) return;
+    if (!formPatientId) return;
 
-    const patient = MOCK_PATIENTS.find((p) => p.id === formPatientId) || MOCK_PATIENTS[0];
-
-    // Monta a string ISO baseada no dia clicado e horários informados
     const [startH, startM] = formStartTime.split(":").map(Number);
     const [endH, endM] = formEndTime.split(":").map(Number);
 
-    const startISO = new Date(selectedDate);
+    const baseDate = new Date(`${formDate}T00:00:00`);
+    const startISO = new Date(baseDate);
     startISO.setHours(startH, startM, 0, 0);
 
-    const endISO = new Date(selectedDate);
+    const endISO = new Date(baseDate);
     endISO.setHours(endH, endM, 0, 0);
 
-    const newSession: SessionMock = {
-      id: "s_" + Date.now(),
-      tenantId: "t1",
-      patientId: patient.id,
-      dataHoraInicio: startISO.toISOString(),
-      dataHoraFim: endISO.toISOString(),
-      status: formStatus,
-      lembreteEnviado: false,
-      observacoes: formNotes,
-      patient,
-    };
+    setSaving(true);
+    setSidebarError("");
 
-    setSessions((prev) => [...prev, newSession]);
-    setIsSidebarOpen(false);
+    try {
+      const res = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId: formPatientId,
+          dataHoraInicio: startISO.toISOString(),
+          dataHoraFim: endISO.toISOString(),
+          status: formStatus,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setSidebarError(data.error || "Erro ao agendar.");
+        return;
+      }
+
+      setSessions((prev) => [...prev, normalizeSession(data.data)]);
+      setIsSidebarOpen(false);
+    } catch {
+      setSidebarError("Erro de conexão. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // Atualizar status de uma sessão existente pela Sidebar
-  const handleUpdateStatus = (newStatus: "agendada" | "realizada" | "cancelada" | "falta") => {
+  // ─── ATUALIZAR STATUS (optimistic) ───────────────────────
+  const handleUpdateStatus = async (
+    newStatus: "agendada" | "realizada" | "cancelada" | "falta"
+  ) => {
     if (!selectedSession) return;
-    
-    const updated = sessions.map((s) =>
+
+    const prevSessions = sessions;
+    const prevSelected = selectedSession;
+
+    setSessions(sessions.map((s) =>
       s.id === selectedSession.id ? { ...s, status: newStatus } : s
-    );
-    setSessions(updated);
+    ));
     setSelectedSession({ ...selectedSession, status: newStatus });
+
+    try {
+      const res = await fetch(`/api/sessions/${selectedSession.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId: selectedSession.patientId,
+          dataHoraInicio: selectedSession.dataHoraInicio,
+          dataHoraFim: selectedSession.dataHoraFim,
+          status: newStatus,
+        }),
+      });
+      if (!res.ok) {
+        setSessions(prevSessions);
+        setSelectedSession(prevSelected);
+      }
+    } catch {
+      setSessions(prevSessions);
+      setSelectedSession(prevSelected);
+    }
   };
 
-  // Excluir agendamento
-  const handleDeleteAppointment = () => {
+  // ─── EXCLUIR AGENDAMENTO (optimistic) ────────────────────
+  const handleDeleteAppointment = async () => {
     if (!selectedSession) return;
-    
+
+    const prevSessions = sessions;
+    const prevSelected = selectedSession;
+
     setSessions((prev) => prev.filter((s) => s.id !== selectedSession.id));
     setIsSidebarOpen(false);
     setSelectedSession(null);
-  };
-
-  // ─── 8.2 — Handler do botão "Disparar Lembretes do Dia" ───────────────────
-  const handleSendReminders = useCallback(async () => {
-    // 8.7 — Guarda contra duplo clique (já garantido pelo disabled, mas defensive)
-    if (isSendingReminders) return;
-
-    setIsSendingReminders(true);
-    setReminderToast({ type: "progress", message: "Iniciando disparo de lembretes..." });
 
     try {
-      const res = await fetch("/api/whatsapp/send-reminders", { method: "POST" });
-      const json = await res.json();
-
-      // 8.6 — Tratar erros da API (instância desconectada, env ausente)
+      const res = await fetch(`/api/sessions/${selectedSession.id}`, { method: "DELETE" });
       if (!res.ok) {
-        setReminderToast({
-          type: "error",
-          message: json.error ?? "Erro ao iniciar o disparo de lembretes.",
+        setSessions(prevSessions);
+        setIsSidebarOpen(true);
+        setSelectedSession(prevSelected);
+      }
+    } catch {
+      setSessions(prevSessions);
+      setIsSidebarOpen(true);
+      setSelectedSession(prevSelected);
+    }
+  };
+
+  // ─── LEMBRETES EM MASSA ───────────────────────────────────
+  const handleOpenReminderModal = () => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    setReminderDate(today);
+    setReminderProgress(null);
+    setReminderDone(false);
+    setShowReminderModal(true);
+    fetchReminderSessions(today);
+  };
+
+  // ─── WHATSAPP INDIVIDUAL ──────────────────────────────────
+  const handleSendSingle = async () => {
+    if (!selectedSession) return;
+    setWaSending(true);
+    setWaSuccess(false);
+    setWaError("");
+    try {
+      const res = await fetch("/api/whatsapp/send-single", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: selectedSession.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setWaError(data.error || "Erro ao enviar mensagem.");
+      } else {
+        setWaSuccess(true);
+        setSelectedSession({ ...selectedSession, lembreteEnviado: true });
+      }
+    } catch {
+      setWaError("Erro de conexão. Tente novamente.");
+    } finally {
+      setWaSending(false);
+    }
+  };
+
+  const handleSendReminders = async () => {
+    setReminderSending(true);
+    try {
+      const res = await fetch("/api/whatsapp/send-reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: reminderDate }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setReminderProgress({
+          sent: 0,
+          skipped: 0,
+          total: 0,
+          status: "error",
+          error: data.error || "Erro ao iniciar envio.",
         });
-        setIsSendingReminders(false);
+        setReminderSending(false);
         return;
       }
-
-      const { jobId, total } = json.data ?? json;
-
-      if (total === 0) {
-        setReminderToast({ type: "success", message: "Nenhuma sessão pendente de lembrete hoje." });
-        setIsSendingReminders(false);
-        setTimeout(() => setReminderToast(null), 4000);
-        return;
-      }
-
-      // 8.4 — Toast inicial de progresso
-      setReminderToast({ type: "progress", message: `Enviando 0 de ${total}...` });
-
-      // 8.3 — Polling a cada 2 segundos
-      reminderPollRef.current = setInterval(async () => {
+      const { jobId, total } = data.data;
+      setReminderProgress({ sent: 0, skipped: 0, total, status: "running" });
+      const interval = setInterval(async () => {
         try {
-          const statusRes = await fetch(
-            `/api/whatsapp/reminder-status?jobId=${jobId}`
-          );
-          const statusJson = await statusRes.json();
-
-          if (!statusRes.ok) {
-            clearInterval(reminderPollRef.current!);
-            setReminderToast({
-              type: "error",
-              message: statusJson.error ?? "Erro ao verificar progresso.",
-            });
-            setIsSendingReminders(false);
-            return;
-          }
-
-          const { sent, total: tot, status: jobStatus } = statusJson;
-
-          if (jobStatus === "running") {
-            // 8.4 — Atualizar toast de progresso dinâmico
-            setReminderToast({
-              type: "progress",
-              message: `Enviando ${sent} de ${tot}...`,
-            });
-          } else if (jobStatus === "done") {
-            // 8.5 — Toast de sucesso e encerrar polling
-            clearInterval(reminderPollRef.current!);
-            setReminderToast({
-              type: "success",
-              message: `✓ ${sent} lembrete(s) enviado(s) com sucesso!`,
-            });
-            setIsSendingReminders(false);
-            setTimeout(() => setReminderToast(null), 5000);
-          } else if (jobStatus === "error") {
-            clearInterval(reminderPollRef.current!);
-            setReminderToast({
-              type: "error",
-              message: statusJson.errorMessage ?? "Erro durante o disparo.",
-            });
-            setIsSendingReminders(false);
+          const poll = await fetch(`/api/whatsapp/reminder-status?jobId=${jobId}`);
+          const pollData = await poll.json();
+          const job = pollData.data;
+          setReminderProgress(job);
+          if (job.status === "done" || job.status === "error") {
+            clearInterval(interval);
+            setReminderSending(false);
+            setReminderDone(true);
           }
         } catch {
-          clearInterval(reminderPollRef.current!);
-          setReminderToast({
-            type: "error",
-            message: "Erro de conexão ao verificar progresso do disparo.",
-          });
-          setIsSendingReminders(false);
+          clearInterval(interval);
+          setReminderSending(false);
         }
       }, 2000);
     } catch {
-      // 8.6 — Erro de rede ou servidor
-      setReminderToast({
-        type: "error",
-        message: "Falha de conexão. Verifique o servidor e tente novamente.",
+      setReminderProgress({
+        sent: 0,
+        skipped: 0,
+        total: 0,
+        status: "error",
+        error: "Erro de conexão.",
       });
-      setIsSendingReminders(false);
+      setReminderSending(false);
     }
-  }, [isSendingReminders]);
+  };
 
-  // Limpar polling ao desmontar o componente
-  useEffect(() => {
-    return () => {
-      if (reminderPollRef.current) clearInterval(reminderPollRef.current);
-    };
-  }, []);
-
-  // ─── ESTILOS VISUAIS PARA PILLS E BADGES ───────────────────
+  // ─── ESTILOS DE STATUS ────────────────────────────────────
   const statusConfig = {
     agendada: {
       pill: "bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400 border-sky-100 dark:border-sky-900/30 hover:bg-sky-100/50 dark:hover:bg-sky-950/50",
@@ -417,9 +465,10 @@ export default function AgendaPage() {
     },
   };
 
+  // ─── RENDER ───────────────────────────────────────────────
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* ─── CABEÇALHO DO MÓDULO ─── */}
+      {/* ─── CABEÇALHO ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
@@ -434,23 +483,18 @@ export default function AgendaPage() {
             Gerencie atendimentos, controle presenças, faltas e agende novas sessões clicando diretamente nos dias.
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* Botão Disparar Lembretes do Dia */}
-          <button
-            id="btn-disparar-lembretes"
-            type="button"
-            onClick={handleSendReminders}
-            disabled={isSendingReminders}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-500/20 active:scale-[0.98] cursor-pointer"
-          >
-            {isSendingReminders ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <MessageSquare className="w-4 h-4" />
-            )}
-            <span>{isSendingReminders ? "Disparando..." : "Disparar Lembretes"}</span>
-          </button>
 
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <button
+            onClick={handleOpenReminderModal}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-500/20 active:scale-[0.98] cursor-pointer"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>
+              Lembretes do Dia
+              {todayAgendadas.length > 0 && ` (${todayAgendadas.length})`}
+            </span>
+          </button>
           <button
             onClick={() => handleDayClick(new Date())}
             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-500 hover:bg-sky-600 dark:bg-sky-500 dark:hover:bg-sky-600 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-sky-500/20 active:scale-[0.98] cursor-pointer"
@@ -461,7 +505,7 @@ export default function AgendaPage() {
         </div>
       </div>
 
-      {/* ─── BARRA DE BUSCA, FILTROS E CONTROLES ─── */}
+      {/* ─── BARRA DE CONTROLES ─── */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-150 dark:border-slate-800/80 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4 transition-all duration-300">
         {/* Navegação de Mês */}
         <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-start">
@@ -481,7 +525,7 @@ export default function AgendaPage() {
               <ChevronRight className="w-4.5 h-4.5" />
             </button>
           </div>
-          
+
           <h2 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm md:text-base capitalize px-2 leading-none">
             {format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })}
           </h2>
@@ -494,9 +538,8 @@ export default function AgendaPage() {
           </button>
         </div>
 
-        {/* Busca e Status Filtro */}
+        {/* Busca e Filtro */}
         <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto items-center">
-          {/* Input de Busca */}
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
             <input
@@ -508,7 +551,6 @@ export default function AgendaPage() {
             />
           </div>
 
-          {/* Select de Status */}
           <div className="relative w-full sm:w-44">
             <Filter className="absolute left-3.5 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
             <select
@@ -527,119 +569,207 @@ export default function AgendaPage() {
         </div>
       </div>
 
-      {/* ─── VISÃO MENSAL EXPANDIDA DO CALENDÁRIO ─── */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800/80 shadow-sm overflow-hidden transition-all duration-300">
-        {/* Dias da Semana (Headers) */}
-        <div className="grid grid-cols-7 border-b border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 py-3 text-center">
-          {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((label) => (
-            <div key={label} className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-              {label}
+      {/* ─── VISTA LISTA (mobile) ─── */}
+      <div className="block lg:hidden">
+        {loadingSessions ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader className="w-6 h-6 text-sky-500 animate-spin" />
+          </div>
+        ) : filteredSessions.filter((s) => isSameMonth(parseISO(s.dataHoraInicio), currentMonth)).length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800 p-12 text-center text-slate-400 dark:text-slate-500 text-sm">
+            Nenhuma sessão neste mês.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {Object.entries(
+              filteredSessions
+                .filter((s) => isSameMonth(parseISO(s.dataHoraInicio), currentMonth))
+                .sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime())
+                .reduce<Record<string, Session[]>>((acc, session) => {
+                  const key = format(parseISO(session.dataHoraInicio), "yyyy-MM-dd");
+                  if (!acc[key]) acc[key] = [];
+                  acc[key].push(session);
+                  return acc;
+                }, {})
+            ).map(([dateKey, daySessions]) => {
+              const date = parseISO(dateKey);
+              const isDayToday = isToday(date);
+              return (
+                <div key={dateKey} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800 overflow-hidden shadow-sm">
+                  <div
+                    className={`px-4 py-2.5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors`}
+                    onClick={() => handleDayClick(date)}
+                  >
+                    <span className={`text-xs font-extrabold capitalize ${isDayToday ? "text-sky-500" : "text-slate-700 dark:text-slate-200"}`}>
+                      {format(date, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                      {isDayToday && <span className="ml-2 text-[9px] bg-sky-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">Hoje</span>}
+                    </span>
+                    <Plus className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {daySessions.map((session) => {
+                      const cfg = statusConfig[session.status];
+                      return (
+                        <div
+                          key={session.id}
+                          onClick={(e) => handleSessionClick(e, session)}
+                          className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors"
+                        >
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{session.patient.nome}</p>
+                            <p className="text-xs text-slate-400 font-medium">
+                              {format(parseISO(session.dataHoraInicio), "HH:mm")} – {format(parseISO(session.dataHoraFim), "HH:mm")}
+                            </p>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.badge} shrink-0`}>
+                            {cfg.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ─── CALENDÁRIO MENSAL (desktop) ─── */}
+      <div className="hidden lg:block">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800/80 shadow-sm overflow-hidden transition-all duration-300 relative">
+          {/* Loading overlay */}
+          {loadingSessions && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-slate-900/60 backdrop-blur-[2px]">
+              <Loader className="w-6 h-6 text-sky-500 animate-spin" />
+            </div>
+          )}
+
+          {/* Dias da Semana */}
+          <div className="grid grid-cols-7 border-b border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 py-3 text-center">
+            {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((label) => (
+              <div
+                key={label}
+                className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest"
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {/* Grade de Dias */}
+          <div className="grid grid-cols-7 divide-x divide-y divide-slate-150 dark:divide-slate-800 bg-slate-150/40 dark:bg-slate-800/20">
+            {days.map((day, idx) => {
+              const isCurrentMonth = isSameMonth(day, currentMonth);
+              const isDayToday = isToday(day);
+
+              const daySessions = filteredSessions.filter((session) =>
+                isSameDay(parseISO(session.dataHoraInicio), day)
+              );
+              const sortedSessions = [...daySessions].sort(
+                (a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
+              );
+
+              return (
+                <div
+                  key={day.toString() + idx}
+                  onClick={() => handleDayClick(day)}
+                  className={`min-h-[120px] bg-white dark:bg-slate-900 p-2 flex flex-col gap-1.5 transition-all select-none relative group cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-900/40 ${
+                    !isCurrentMonth ? "bg-slate-50/40 dark:bg-slate-950/10 opacity-40" : ""
+                  } ${
+                    isDayToday ? "ring-2 ring-sky-500 ring-inset dark:ring-sky-500 bg-sky-500/[0.01]" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    {isDayToday ? (
+                      <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-sky-500 text-white tracking-wider">
+                        Hoje
+                      </span>
+                    ) : (
+                      <div />
+                    )}
+                    <span
+                      className={`text-xs font-extrabold px-1.5 py-0.5 rounded-lg ${
+                        isDayToday ? "text-sky-500" : "text-slate-600 dark:text-slate-400"
+                      }`}
+                    >
+                      {format(day, "d")}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[85px] no-scrollbar">
+                    {sortedSessions.map((session) => {
+                      const hora = format(parseISO(session.dataHoraInicio), "HH:mm");
+                      const cfg = statusConfig[session.status];
+
+                      return (
+                        <div
+                          key={session.id}
+                          onClick={(e) => handleSessionClick(e, session)}
+                          className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 transition-all truncate shadow-sm shrink-0 leading-none ${cfg.pill}`}
+                          title={`${hora} - ${session.patient.nome} (${cfg.label})`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} shrink-0`} />
+                          <span className="text-[9px] opacity-80 shrink-0 font-extrabold">{hora}</span>
+                          <span className="truncate flex-1">{session.patient.nome}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <span className="p-1 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-500 border border-sky-200/40 dark:border-sky-900/30 flex items-center justify-center">
+                      <Plus className="w-3 h-3" />
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ─── LEGENDA ─── */}
+        <div className="flex flex-wrap items-center justify-center gap-6 py-2">
+          <span className="text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest mr-2">
+            Legenda:
+          </span>
+          {Object.entries(statusConfig).map(([status, cfg]) => (
+            <div key={status} className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${cfg.dot}`} />
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-400 capitalize">
+                {cfg.label}
+              </span>
             </div>
           ))}
         </div>
-
-        {/* Grade de Dias */}
-        <div className="grid grid-cols-7 divide-x divide-y divide-slate-150 dark:divide-slate-800 bg-slate-150/40 dark:bg-slate-800/20">
-          {days.map((day, idx) => {
-            const isCurrentMonth = isSameMonth(day, currentMonth);
-            const isDayToday = isToday(day);
-            
-            // Recupera as sessões já indexadas para este dia em O(1)
-            const daySessions = sessionsByDate[format(day, "yyyy-MM-dd")] || [];
-
-            // Ordena sessões por hora de início
-            const sortedSessions = [...daySessions].sort(
-              (a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
-            );
-
-            return (
-              <div
-                key={day.toString() + idx}
-                onClick={() => handleDayClick(day)}
-                className={`min-h-[120px] bg-white dark:bg-slate-900 p-2 flex flex-col gap-1.5 transition-all select-none relative group cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-900/40 ${
-                  !isCurrentMonth ? "bg-slate-50/40 dark:bg-slate-950/10 opacity-40" : ""
-                } ${
-                  isDayToday ? "ring-2 ring-sky-500 ring-inset dark:ring-sky-500 bg-sky-500/[0.01]" : ""
-                }`}
-              >
-                {/* Cabeçalho do Dia (Número e Badge Hoje) */}
-                <div className="flex items-center justify-between">
-                  {isDayToday ? (
-                    <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-sky-500 text-white tracking-wider">
-                      Hoje
-                    </span>
-                  ) : (
-                    <div />
-                  )}
-                  <span
-                    className={`text-xs font-extrabold px-1.5 py-0.5 rounded-lg ${
-                      isDayToday
-                        ? "text-sky-500"
-                        : "text-slate-600 dark:text-slate-400"
-                    }`}
-                  >
-                    {format(day, "d")}
-                  </span>
-                </div>
-
-                {/* Lista de Sessões (Pills) */}
-                <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[85px] no-scrollbar">
-                  {sortedSessions.map((session) => {
-                    const hora = format(parseISO(session.dataHoraInicio), "HH:mm");
-                    const cfg = statusConfig[session.status];
-
-                    return (
-                      <div
-                        key={session.id}
-                        onClick={(e) => handleSessionClick(e, session)}
-                        className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 transition-all truncate shadow-sm shrink-0 leading-none ${cfg.pill}`}
-                        title={`${hora} - ${session.patient.nome} (${cfg.label})`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} shrink-0`} />
-                        <span className="text-[9px] opacity-80 shrink-0 font-extrabold">{hora}</span>
-                        <span className="truncate flex-1">{session.patient.nome}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Dica visual de hover para adicionar sessão */}
-                <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  <span className="p-1 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-500 border border-sky-200/40 dark:border-sky-900/30 flex items-center justify-center">
-                    <Plus className="w-3 h-3" />
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </div>
 
-      {/* ─── LEGENDA DOS STATUS ─── */}
-      <div className="flex flex-wrap items-center justify-center gap-6 py-2">
-        <span className="text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest mr-2">
-          Legenda:
-        </span>
-        {Object.entries(statusConfig).map(([status, cfg]) => (
-          <div key={status} className="flex items-center gap-2">
-            <span className={`w-2.5 h-2.5 rounded-full ${cfg.dot}`} />
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-400 capitalize">
-              {cfg.label}
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* ─── MODAL DE LEMBRETES EM MASSA ─── */}
+      {showReminderModal && (
+        <AgendaReminderModal
+          onClose={() => setShowReminderModal(false)}
+          reminderSending={reminderSending}
+          reminderDone={reminderDone}
+          reminderDate={reminderDate}
+          setReminderDate={setReminderDate}
+          setReminderProgress={setReminderProgress}
+          fetchReminderSessions={fetchReminderSessions}
+          reminderLoadingSessions={reminderLoadingSessions}
+          reminderSessions={reminderSessions}
+          reminderProgress={reminderProgress}
+          handleSendReminders={handleSendReminders}
+        />
+      )}
 
       {/* ─── SIDEBAR DESLIZANTE (DRAWER) ─── */}
       {isSidebarOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden font-sans">
-          {/* Backdrop Blur */}
           <div
             className="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300"
             onClick={() => setIsSidebarOpen(false)}
           />
 
-          {/* Sidebar Drawer */}
           <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col h-full border-l border-slate-100 dark:border-slate-800 transition-all duration-300 animate-slide-in">
             {/* Header */}
             <div className="p-5 border-b border-slate-150 dark:border-slate-800 flex items-center justify-between">
@@ -650,7 +780,7 @@ export default function AgendaPage() {
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 leading-none">
                   {sidebarMode === "view"
                     ? "Informações clínicas e alteração de presença."
-                    : `Cadastrar sessão para o dia ${format(selectedDate!, "dd/MM/yyyy")}`}
+                    : `Cadastrar sessão para o dia ${formDate ? format(new Date(`${formDate}T00:00:00`), "dd/MM/yyyy") : ""}`}
                 </p>
               </div>
               <button
@@ -661,12 +791,11 @@ export default function AgendaPage() {
               </button>
             </div>
 
-            {/* Conteúdo Central */}
+            {/* Conteúdo */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {sidebarMode === "view" && selectedSession ? (
-                // ─── VISUALIZAÇÃO DE DETALHES DA SESSÃO ───
+                // ─── DETALHES DA SESSÃO ───
                 <div className="space-y-6">
-                  {/* Status Badge */}
                   <div className="flex items-center gap-2.5">
                     <span
                       className={`px-3 py-1 text-xs font-bold border rounded-full uppercase tracking-wider ${
@@ -678,12 +807,11 @@ export default function AgendaPage() {
                     {selectedSession.lembreteEnviado && (
                       <span className="px-2.5 py-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-full flex items-center gap-1">
                         <CheckCircle className="w-3 h-3" />
-                        Lembrete WhatsApp Enviado
+                        Lembrete Enviado
                       </span>
                     )}
                   </div>
 
-                  {/* Informações Básicas do Paciente */}
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/30 border border-slate-100 dark:border-slate-800 flex items-start gap-4">
                     <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-base shrink-0">
                       {selectedSession.patient.nome.charAt(0)}
@@ -692,62 +820,83 @@ export default function AgendaPage() {
                       <h4 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm truncate leading-snug">
                         {selectedSession.patient.nome}
                       </h4>
-                      <p className="text-xs text-slate-400 font-semibold">{selectedSession.patient.telefoneWhatsapp}</p>
+                      {selectedSession.patient.telefoneWhatsapp && (
+                        <p className="text-xs text-slate-400 font-semibold">
+                          {selectedSession.patient.telefoneWhatsapp}
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  {/* Detalhes do Horário */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-3.5 rounded-xl border border-slate-150 dark:border-slate-850 space-y-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Horário</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                        Horário
+                      </span>
                       <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
                         <Clock className="w-4 h-4 text-sky-500" />
                         <span>
-                          {format(parseISO(selectedSession.dataHoraInicio), "HH:mm")} - {format(parseISO(selectedSession.dataHoraFim), "HH:mm")}
+                          {format(parseISO(selectedSession.dataHoraInicio), "HH:mm")} -{" "}
+                          {format(parseISO(selectedSession.dataHoraFim), "HH:mm")}
                         </span>
                       </div>
                     </div>
-                    <div className="p-3.5 rounded-xl border border-slate-150 dark:border-slate-850 space-y-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Valor Combinado</span>
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
-                        <DollarSign className="w-4 h-4 text-emerald-500" />
-                        <span>R$ {selectedSession.patient.valorSessaoPadrao.toFixed(2)}</span>
+                    {selectedSession.patient.valorSessaoPadrao != null && (
+                      <div className="p-3.5 rounded-xl border border-slate-150 dark:border-slate-850 space-y-1">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                          Valor Combinado
+                        </span>
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+                          <DollarSign className="w-4 h-4 text-emerald-500" />
+                          <span>R$ {selectedSession.patient.valorSessaoPadrao.toFixed(2)}</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Notas de Observação */}
-                  {selectedSession.observacoes && (
-                    <div className="space-y-2">
-                      <span className="text-[10px] text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5" />
-                        Observações Clínicas
-                      </span>
-                      <div className="p-4 rounded-xl border border-slate-150 dark:border-slate-850 bg-slate-50/20 dark:bg-slate-950/20 text-xs font-medium text-slate-650 dark:text-slate-350 leading-relaxed whitespace-pre-wrap">
-                        {selectedSession.observacoes}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Controle de Status Pickers (Segmented Control) */}
+                  {/* Alterar Status */}
                   <div className="space-y-3">
                     <span className="text-[10px] text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider block">
                       Alterar Presença / Status:
                     </span>
                     <div className="grid grid-cols-2 gap-2">
-                      {([
-                        { status: "agendada", label: "Agendada", color: "hover:border-sky-500 hover:text-sky-500 text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/5" },
-                        { status: "realizada", label: "Realizada", color: "hover:border-emerald-500 hover:text-emerald-500 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/5" },
-                        { status: "falta", label: "Falta", color: "hover:border-amber-500 hover:text-amber-500 text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/5" },
-                        { status: "cancelada", label: "Cancelada", color: "hover:border-rose-500 hover:text-rose-500 text-rose-600 dark:text-rose-400 border-rose-500/30 bg-rose-500/5" },
-                      ] as const).map((btn) => {
+                      {(
+                        [
+                          {
+                            status: "agendada",
+                            label: "Agendada",
+                            color:
+                              "hover:border-sky-500 hover:text-sky-500 text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/5",
+                          },
+                          {
+                            status: "realizada",
+                            label: "Realizada",
+                            color:
+                              "hover:border-emerald-500 hover:text-emerald-500 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/5",
+                          },
+                          {
+                            status: "falta",
+                            label: "Falta",
+                            color:
+                              "hover:border-amber-500 hover:text-amber-500 text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/5",
+                          },
+                          {
+                            status: "cancelada",
+                            label: "Cancelada",
+                            color:
+                              "hover:border-rose-500 hover:text-rose-500 text-rose-600 dark:text-rose-400 border-rose-500/30 bg-rose-500/5",
+                          },
+                        ] as const
+                      ).map((btn) => {
                         const isSel = selectedSession.status === btn.status;
                         return (
                           <button
                             key={btn.status}
                             onClick={() => handleUpdateStatus(btn.status)}
                             className={`px-3 py-2.5 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
-                              isSel ? btn.color + " ring-1 ring-inset" : "border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-850"
+                              isSel
+                                ? btn.color + " ring-1 ring-inset"
+                                : "border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-850"
                             }`}
                           >
                             {btn.label}
@@ -757,23 +906,64 @@ export default function AgendaPage() {
                     </div>
                   </div>
 
-                  {/* Disparador do WhatsApp */}
-                  <div className="pt-2">
-                    <a
-                      href={`https://api.whatsapp.com/send?phone=${selectedSession.patient.telefoneWhatsapp}&text=Ol%C3%A1%20${encodeURIComponent(selectedSession.patient.nome)}!%20Passando%20para%20confirmar%20nossa%20sess%C3%A3o%20de%20psicologia%20agendada%20para%20o%20dia%20${format(parseISO(selectedSession.dataHoraInicio), "dd/MM")}%20%C3%A0s%20${format(parseISO(selectedSession.dataHoraInicio), "HH:mm")}.%20At%C3%A9%20l%C3%A1!`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
-                    >
-                      <MessageSquare className="w-4.5 h-4.5" />
-                      <span>Confirmar por WhatsApp</span>
-                    </a>
-                  </div>
+                  {/* WhatsApp individual */}
+                  {selectedSession.patient.telefoneWhatsapp && (
+                    <div className="pt-2 space-y-2">
+                      {waError && (
+                        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          {waError}
+                        </div>
+                      )}
+                      {waSuccess ? (
+                        <div className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold text-xs rounded-xl">
+                          <CheckCircle className="w-4 h-4" />
+                          Mensagem enviada!
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleSendSingle}
+                          disabled={waSending}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          {waSending ? (
+                            <><Loader className="w-4 h-4 animate-spin" />Enviando...</>
+                          ) : (
+                            <><MessageSquare className="w-4 h-4" />Confirmar por WhatsApp</>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
-                // ─── FORMULÁRIO DE CRIAÇÃO DE AGENDAMENTO ───
+                // ─── FORMULÁRIO DE CRIAÇÃO ───
                 <form onSubmit={handleCreateAppointment} className="space-y-5">
-                  {/* Seleção do Paciente */}
+                  {sidebarError && (
+                    <div className="p-3 text-xs bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-xl border border-rose-100 dark:border-rose-900/30">
+                      {sidebarError}
+                    </div>
+                  )}
+
+                  {/* Data */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider block">
+                      Data da Consulta:
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-3 h-4.5 w-4.5 text-slate-450" />
+                      <input
+                        type="date"
+                        value={formDate}
+                        onChange={(e) => setFormDate(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-bold cursor-text"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Paciente */}
                   <div className="space-y-2">
                     <label className="text-[10px] text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider block">
                       Selecione o Paciente:
@@ -783,19 +973,27 @@ export default function AgendaPage() {
                       <select
                         value={formPatientId}
                         onChange={(e) => setFormPatientId(e.target.value)}
+                        required
                         className="w-full pl-10 pr-10 py-3 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 appearance-none font-semibold cursor-pointer"
                       >
-                        {MOCK_PATIENTS.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.nome} (R$ {p.valorSessaoPadrao.toFixed(2)})
-                          </option>
-                        ))}
+                        {patients.length === 0 ? (
+                          <option value="">Carregando pacientes...</option>
+                        ) : (
+                          patients.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.nome}
+                              {p.valorSessaoPadrao != null
+                                ? ` (R$ ${p.valorSessaoPadrao.toFixed(2)})`
+                                : ""}
+                            </option>
+                          ))
+                        )}
                       </select>
                       <div className="absolute right-3.5 top-4 pointer-events-none border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-500 dark:border-t-slate-400 w-0 h-0" />
                     </div>
                   </div>
 
-                  {/* Horários da Consulta */}
+                  {/* Horários */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider block">
@@ -855,21 +1053,7 @@ export default function AgendaPage() {
                     </div>
                   </div>
 
-                  {/* Observações / Anotações */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider block">
-                      Observações Clínicas (Opcional):
-                    </label>
-                    <textarea
-                      value={formNotes}
-                      onChange={(e) => setFormNotes(e.target.value)}
-                      rows={4}
-                      placeholder="Ex: Queixa recorrente de ansiedade no trabalho, foco na discussão sobre limites..."
-                      className="w-full p-4 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-medium placeholder:text-slate-400 resize-none"
-                    />
-                  </div>
-
-                  {/* Botões do Form */}
+                  {/* Botões */}
                   <div className="flex gap-3 pt-2">
                     <button
                       type="button"
@@ -880,16 +1064,24 @@ export default function AgendaPage() {
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 px-4 py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-md shadow-sky-500/20 active:scale-[0.98] transition-all cursor-pointer text-center"
+                      disabled={saving || patients.length === 0}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-md shadow-sky-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Agendar Consulta
+                      {saving ? (
+                        <>
+                          <Loader className="w-3.5 h-3.5 animate-spin" />
+                          Agendando...
+                        </>
+                      ) : (
+                        "Agendar Consulta"
+                      )}
                     </button>
                   </div>
                 </form>
               )}
             </div>
 
-            {/* Footer com Ações Destrutivas (se estiver visualizando) */}
+            {/* Footer — ações destrutivas */}
             {sidebarMode === "view" && selectedSession && (
               <div className="p-5 border-t border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
                 <button
