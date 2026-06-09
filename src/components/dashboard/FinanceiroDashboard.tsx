@@ -41,7 +41,7 @@ const STATUS_LABELS: Record<string, string> = { pago: "Pago", pendente: "Pendent
 const TIPO_LABELS: Record<string, string> = { receita: "Receita", despesa: "Despesa" };
 const FORMA_LABELS: Record<string, string> = { dinheiro: "Dinheiro", pix: "Pix", cartao: "Cartão" };
 const FORMA_COLORS: Record<string, string> = {
-  pix: "bg-sky-50 dark:bg-sky-950/20 text-sky-700 dark:text-sky-400 border-sky-100 dark:border-sky-900/30",
+  pix: "bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/30",
   dinheiro: "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30",
   cartao: "bg-violet-50 dark:bg-violet-950/20 text-violet-700 dark:text-violet-400 border-violet-100 dark:border-violet-900/30",
 };
@@ -116,7 +116,7 @@ export default function FinanceiroDashboard() {
       value: formatBRL(saldo),
       icon: saldo >= 0 ? Wallet : DollarSign,
       color: saldo >= 0
-        ? "bg-sky-500/10 text-sky-600 dark:text-sky-400"
+        ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
         : "bg-amber-500/10 text-amber-600 dark:text-amber-400",
     },
   ];
@@ -198,13 +198,13 @@ export default function FinanceiroDashboard() {
                 placeholder="Buscar..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
+                className="w-full pl-9 pr-4 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400"
               />
             </div>
             <select
               value={filterTipo}
               onChange={(e) => { setFilterTipo(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer"
+              className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
             >
               <option value="todos">Todos Tipos</option>
               <option value="receita">Receita</option>
@@ -213,7 +213,7 @@ export default function FinanceiroDashboard() {
             <select
               value={filterStatus}
               onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer"
+              className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
             >
               <option value="todos">Todos Status</option>
               <option value="pago">Pago</option>

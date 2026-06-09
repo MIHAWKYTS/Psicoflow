@@ -24,7 +24,7 @@ const EMPTY_FORM = {
 };
 
 const inputClass =
-  "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500";
+  "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500";
 
 function maskPhone(value: string): string {
   const d = value.replace(/\D/g, "").slice(0, 11);
@@ -170,7 +170,7 @@ export default function PacientesPage() {
         <button
           type="button"
           onClick={openModal}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm rounded-xl shadow-sm hover:shadow active:scale-98 transition-all w-full sm:w-auto cursor-pointer"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-sm shadow-indigo-500/20 hover:shadow-md hover:shadow-indigo-500/20 active:scale-[0.98] transition-all w-full sm:w-auto cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Cadastrar Paciente</span>
@@ -186,13 +186,13 @@ export default function PacientesPage() {
             placeholder="Buscar por nome..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
+            className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400"
           />
         </div>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="w-full sm:w-44 px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer"
+          className="w-full sm:w-44 px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
         >
           <option value="todos">Todos Status</option>
           <option value="ativo">Ativos</option>
@@ -218,11 +218,11 @@ export default function PacientesPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold text-base shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-base shrink-0">
                       {patient.nome.charAt(0).toUpperCase()}
                     </div>
                     <div className="truncate">
-                      <h3 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-sky-500 transition-colors truncate">
+                      <h3 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-500 transition-colors truncate">
                         {patient.nome}
                       </h3>
                       <span
@@ -433,7 +433,7 @@ export default function PacientesPage() {
                 type="submit"
                 form="cadastro-form"
                 disabled={saving}
-                className="flex items-center gap-2 px-5 py-2 text-sm rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold transition-all"
+                className="flex items-center gap-2 px-5 py-2 text-sm rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold transition-all"
               >
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {saving ? "Salvando..." : "Cadastrar"}

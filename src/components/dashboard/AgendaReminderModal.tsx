@@ -149,7 +149,7 @@ export default function AgendaReminderModal({
                   ? "bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/30"
                   : reminderProgress.status === "done"
                   ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/30"
-                  : "bg-sky-50 dark:bg-sky-950/20 border-sky-200 dark:border-sky-900/30"
+                  : "bg-indigo-50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900/30"
               }`}
             >
               {reminderProgress.status === "error" ? (
@@ -168,7 +168,7 @@ export default function AgendaReminderModal({
                 </p>
               ) : (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-sky-600 dark:text-sky-400">
+                  <div className="flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400">
                     <span className="flex items-center gap-2">
                       <Loader className="w-3.5 h-3.5 animate-spin shrink-0" />
                       Enviando mensagens...
@@ -177,9 +177,9 @@ export default function AgendaReminderModal({
                       {reminderProgress.sent}/{reminderProgress.total}
                     </span>
                   </div>
-                  <div className="h-1.5 w-full bg-sky-200 dark:bg-sky-900/30 rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full bg-indigo-200 dark:bg-indigo-900/30 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-sky-500 rounded-full transition-all duration-500"
+                      className="h-full bg-indigo-500 rounded-full transition-all duration-500"
                       style={{
                         width: `${
                           reminderProgress.total > 0

@@ -93,7 +93,7 @@ export default function FinanceiroForm() {
   }
 
   const inputClass =
-    "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all";
+    "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all";
   const labelClass = "block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1";
   const errorClass = "text-xs text-rose-500 mt-1";
 
@@ -101,7 +101,7 @@ export default function FinanceiroForm() {
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
       <div className="mb-5">
         <h2 className="font-extrabold text-slate-800 dark:text-slate-100 text-lg flex items-center gap-2">
-          <PlusCircle className="w-5 h-5 text-sky-500" />
+          <PlusCircle className="w-5 h-5 text-indigo-500" />
           Novo Lançamento
         </h2>
         <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
@@ -234,7 +234,7 @@ export default function FinanceiroForm() {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-bold transition-all"
+            className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold transition-all"
           >
             {loading ? "Registrando..." : "Registrar Lançamento"}
           </button>

@@ -223,7 +223,7 @@ export default function PacientePerfilPage({
           onClick={() => setActiveTab("dados")}
           className={`flex items-center gap-2 px-5 py-3 border-b-2 text-sm font-bold transition-all ${
             activeTab === "dados"
-              ? "border-sky-500 text-sky-600 dark:text-sky-400"
+              ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
               : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
           }`}
         >
@@ -235,7 +235,7 @@ export default function PacientePerfilPage({
           onClick={() => setActiveTab("financeiro")}
           className={`flex items-center gap-2 px-5 py-3 border-b-2 text-sm font-bold transition-all ${
             activeTab === "financeiro"
-              ? "border-sky-500 text-sky-600 dark:text-sky-400"
+              ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
               : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
           }`}
         >
@@ -247,7 +247,7 @@ export default function PacientePerfilPage({
           onClick={() => setActiveTab("prontuario")}
           className={`flex items-center gap-2 px-5 py-3 border-b-2 text-sm font-bold transition-all relative ${
             activeTab === "prontuario"
-              ? "border-sky-500 text-sky-600 dark:text-sky-400"
+              ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
               : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
           }`}
         >
@@ -274,7 +274,7 @@ export default function PacientePerfilPage({
                   type="text"
                   value={patient.nome}
                   onChange={(e) => setPatient({ ...patient, nome: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                 />
               </div>
 
@@ -286,7 +286,7 @@ export default function PacientePerfilPage({
                   type="text"
                   value={patient.telefoneWhatsapp}
                   onChange={(e) => setPatient({ ...patient, telefoneWhatsapp: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                 />
               </div>
 
@@ -298,7 +298,7 @@ export default function PacientePerfilPage({
                   type="email"
                   value={patient.email}
                   onChange={(e) => setPatient({ ...patient, email: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                 />
               </div>
 
@@ -310,7 +310,7 @@ export default function PacientePerfilPage({
                   type="date"
                   value={patient.nascimento}
                   onChange={(e) => setPatient({ ...patient, nascimento: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                 />
               </div>
 
@@ -321,7 +321,7 @@ export default function PacientePerfilPage({
                 <select
                   value={patient.frequenciaSessoes}
                   onChange={(e) => setPatient({ ...patient, frequenciaSessoes: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                 >
                   <option value="semanal">Semanal</option>
                   <option value="quinzenal">Quinzenal</option>
@@ -339,7 +339,7 @@ export default function PacientePerfilPage({
                     type="number"
                     value={patient.valorSessaoPadrao}
                     onChange={(e) => setPatient({ ...patient, valorSessaoPadrao: parseFloat(e.target.value) || 0 })}
-                    className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
                 </div>
               </div>
@@ -362,7 +362,7 @@ export default function PacientePerfilPage({
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-semibold text-sm rounded-xl transition-all cursor-pointer shadow-sm hover:shadow"
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold text-sm rounded-xl transition-all cursor-pointer shadow-sm hover:shadow"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               {saving ? "A guardar..." : "Salvar Alterações"}
@@ -388,7 +388,7 @@ export default function PacientePerfilPage({
                       placeholder="Sessão, Consulta, etc..."
                       value={newFinancialDesc}
                       onChange={(e) => setNewFinancialDesc(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     />
                   </div>
 
@@ -399,7 +399,7 @@ export default function PacientePerfilPage({
                       step="0.01"
                       value={newFinancialVal}
                       onChange={(e) => setNewFinancialVal(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     />
                   </div>
 
@@ -408,7 +408,7 @@ export default function PacientePerfilPage({
                     <select
                       value={newFinancialTipo}
                       onChange={(e) => setNewFinancialTipo(e.target.value as "receita" | "despesa")}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     >
                       <option value="receita">Receita</option>
                       <option value="despesa">Despesa</option>
@@ -420,7 +420,7 @@ export default function PacientePerfilPage({
                     <select
                       value={newFinancialCategoria}
                       onChange={(e) => setNewFinancialCategoria(e.target.value as "consultorio" | "pessoal")}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     >
                       <option value="consultorio">Consultório</option>
                       <option value="pessoal">Pessoal</option>
@@ -433,7 +433,7 @@ export default function PacientePerfilPage({
                       type="date"
                       value={newFinancialDataVenc}
                       onChange={(e) => setNewFinancialDataVenc(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     />
                   </div>
 
@@ -442,7 +442,7 @@ export default function PacientePerfilPage({
                     <select
                       value={newFinancialForma}
                       onChange={(e) => setNewFinancialForma(e.target.value as "dinheiro" | "pix" | "cartao")}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     >
                       <option value="pix">Pix</option>
                       <option value="dinheiro">Dinheiro</option>
@@ -456,7 +456,7 @@ export default function PacientePerfilPage({
                       <select
                         value={newFinancialParcelas}
                         onChange={(e) => setNewFinancialParcelas(Number(e.target.value))}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                       >
                         {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
                           <option key={n} value={n}>{n}x</option>
@@ -506,7 +506,7 @@ export default function PacientePerfilPage({
             {/* Lista Financeira do Paciente */}
             {financialLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 text-sky-500 animate-spin" />
+                <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
               </div>
             ) : financials.length === 0 ? (
               <p className="text-center text-xs text-slate-400 py-8">Nenhum lançamento financeiro registrado.</p>
@@ -575,13 +575,13 @@ export default function PacientePerfilPage({
               /* Acesso Autorizado do Psicólogo */
               <div className="space-y-6">
                 {/* Cabeçalho da área restrita */}
-                <div className="p-4 rounded-xl border border-sky-500/10 bg-sky-500/5 flex items-start gap-3">
-                  <ShieldCheck className="w-5 h-5 text-sky-500 mt-0.5 shrink-0" />
+                <div className="p-4 rounded-xl border border-indigo-500/10 bg-indigo-500/5 flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-indigo-500 mt-0.5 shrink-0" />
                   <div className="space-y-0.5">
-                    <h4 className="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider">
+                    <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
                       Ambiente Clínico Criptografado e Seguro
                     </h4>
-                    <p className="text-[10px] text-sky-500 leading-relaxed">
+                    <p className="text-[10px] text-indigo-500 leading-relaxed">
                       Sua sessão está em conformidade com as diretrizes do CFP e da LGPD. Todos os dados abaixo estão salvos com encriptação em trânsito e em repouso.
                     </p>
                   </div>
@@ -602,7 +602,7 @@ export default function PacientePerfilPage({
                   </div>
                   <Link
                     href={`/dashboard/prontuarios/${id}`}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-bold rounded-xl shadow-sm shadow-sky-500/20 transition-all"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-sm shadow-indigo-500/20 transition-all"
                   >
                     <ExternalLink className="w-4 h-4" />
                     Ver Prontuário
