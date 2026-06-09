@@ -6,7 +6,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const token = req.cookies.get("psicoflow_admin_token")?.value;
+  const token = req.cookies.get("psigen_admin_token")?.value;
   if (!token || !verifyAdminToken(token)) {
     return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
   }

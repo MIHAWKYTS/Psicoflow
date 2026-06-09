@@ -35,7 +35,7 @@ export default function SuspensaoPage() {
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-sm text-slate-500 dark:text-slate-400">
           Suporte:{" "}
           <span className="font-semibold text-slate-700 dark:text-slate-300">
-            suporte@psicoflow.com.br
+            suporte@psigen.com.br
           </span>
         </div>
 

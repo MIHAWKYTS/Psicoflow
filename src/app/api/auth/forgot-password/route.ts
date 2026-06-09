@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     await sendEmail({
       to: user.email,
-      subject: "Redefinição de senha — PsicoFlow",
+      subject: "Redefinição de senha — PsiGen",
       html: buildPasswordResetEmail(user.nome, resetLink),
     });
 
