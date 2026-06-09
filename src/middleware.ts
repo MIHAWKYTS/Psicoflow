@@ -24,11 +24,6 @@ const CONTEXT_HEADERS = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Limpa headers de contexto injetados pelo cliente para evitar spoofing
-  const cleanedHeaders = new Headers(request.headers);
-  CONTEXT_HEADERS.forEach((h) => cleanedHeaders.delete(h));
-  request = new Request(request.url, { ...request, headers: cleanedHeaders }) as NextRequest;
-
   // ── Admin portal (isolado, verificado antes do fluxo de usuário) ────────
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
     // Rotas de autenticação admin são sempre públicas
@@ -217,8 +212,9 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Anexar informações no header para uso fácil nas API Routes
+    // Monta headers para as API Routes — limpa qualquer valor injetado pelo cliente primeiro
     const requestHeaders = new Headers(request.headers);
+    CONTEXT_HEADERS.forEach((h) => requestHeaders.delete(h));
     requestHeaders.set("x-user-id", payload.userId as string);
     requestHeaders.set("x-tenant-id", payload.tenantId as string);
     requestHeaders.set("x-user-role", role);
