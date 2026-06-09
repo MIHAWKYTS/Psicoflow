@@ -207,7 +207,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
   };
 
   const inputClass =
-    "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500";
+    "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500";
 
   const BlockSaveIndicator = ({ state }: { state: BlockSaveState }) => {
     if (state === "idle") return null;
@@ -236,7 +236,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
       {/* Bloco 1 — Identificação */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
-          <User className="w-4 h-4 text-sky-500" />
+          <User className="w-4 h-4 text-indigo-500" />
           Identificação
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -273,7 +273,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
           <div key={field} className={sectionClass}>
             <div className="flex items-center justify-between">
               <h2 className={sectionTitleClass}>
-                <Icon className="w-4 h-4 text-sky-500" />
+                <Icon className="w-4 h-4 text-indigo-500" />
                 {meta.title}
               </h2>
               <BlockSaveIndicator state={blockStates[field]} />
@@ -293,7 +293,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
       {/* Bloco 6 — Evoluções */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
-          <BookOpen className="w-4 h-4 text-sky-500" />
+          <BookOpen className="w-4 h-4 text-indigo-500" />
           Evoluções
         </h2>
 
@@ -353,7 +353,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
       <div className={sectionClass}>
         <div className="flex items-center justify-between">
           <h2 className={sectionTitleClass}>
-            <CheckSquare className="w-4 h-4 text-sky-500" />
+            <CheckSquare className="w-4 h-4 text-indigo-500" />
             Encerramento
           </h2>
           <BlockSaveIndicator state={blockStates["encerramento"]} />
@@ -376,7 +376,7 @@ export default function ProntuarioForm({ patient }: { patient: Patient }) {
               value={blockValues["dataEncerramento"]}
               onChange={(e) => setBlockValues((prev) => ({ ...prev, dataEncerramento: e.target.value }))}
               onBlur={(e) => saveBlock("dataEncerramento", e.target.value)}
-              className="px-3 py-1.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+              className="px-3 py-1.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
             <BlockSaveIndicator state={blockStates["dataEncerramento"]} />
           </div>

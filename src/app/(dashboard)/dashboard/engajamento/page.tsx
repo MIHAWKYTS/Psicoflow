@@ -81,7 +81,7 @@ export default function EngajamentoPage() {
   }
 
   const inputClass =
-    "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all";
+    "w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all";
 
   return (
     <div className="space-y-6">
@@ -133,7 +133,7 @@ export default function EngajamentoPage() {
           </label>
 
           <div className="flex justify-center">
-            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold rounded-xl transition-all">
+            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-all">
               {uploading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Enviando...</> : "Escolha o arquivo"}
               <input
                 type="file"

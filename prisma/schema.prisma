@@ -189,6 +189,8 @@ model FinancialTransaction {
   statusPagamento StatusPagamento    @default(pendente) @map("status_pagamento")
   dataVencimento  DateTime           @map("data_vencimento")
   dataPagamento   DateTime?          @map("data_pagamento")
+  formaPagamento  FormaPagamento?    @map("forma_pagamento")
+  parcelas        Int?               @default(1)
   mpPaymentId     String?            @map("mp_payment_id")
   mpLinkPagamento String?            @map("mp_link_pagamento")
   createdAt       DateTime           @default(now()) @map("created_at")
@@ -315,4 +317,10 @@ enum StatusTarefa {
   pendente
   em_andamento
   concluida
+}
+
+enum FormaPagamento {
+  dinheiro
+  pix
+  cartao
 }

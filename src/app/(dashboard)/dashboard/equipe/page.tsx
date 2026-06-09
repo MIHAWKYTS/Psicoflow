@@ -13,7 +13,7 @@ type TeamUser = {
 };
 
 const inputClass =
-  "w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500";
+  "w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/40 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500";
 
 const ROLE_LABELS: Record<string, string> = {
   psicologo_admin: "Admin",
@@ -23,7 +23,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 const ROLE_STYLES: Record<string, string> = {
   psicologo_admin: "bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-400 border-purple-100 dark:border-purple-900/30",
-  psicologo: "bg-sky-50 dark:bg-sky-950/20 text-sky-700 dark:text-sky-400 border-sky-100 dark:border-sky-900/30",
+  psicologo: "bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/30",
   secretaria: "bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-900/30",
 };
 
@@ -116,7 +116,7 @@ export default function EquipePage() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="space-y-1">
         <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight leading-none flex items-center gap-2">
-          <ShieldCheck className="w-6 h-6 text-sky-500" />
+          <ShieldCheck className="w-6 h-6 text-indigo-500" />
           Gestão de Equipe e Acessos
         </h1>
         <p className="text-xs text-slate-450 dark:text-slate-500">
@@ -128,7 +128,7 @@ export default function EquipePage() {
         {/* Formulário */}
         <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 h-fit">
           <h2 className="font-bold text-sm text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-            <UserPlus className="w-4 h-4 text-sky-500" />
+            <UserPlus className="w-4 h-4 text-indigo-500" />
             Novo Membro
           </h2>
 
@@ -166,7 +166,7 @@ export default function EquipePage() {
             <button
               type="submit"
               disabled={isCreating}
-              className="w-full mt-2 py-3 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all flex justify-center items-center gap-2 shadow-sm"
+              className="w-full mt-2 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all flex justify-center items-center gap-2 shadow-sm"
             >
               {isCreating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-4 h-4" />}
               {isCreating ? "Criando..." : "Cadastrar Usuário"}
@@ -210,7 +210,7 @@ export default function EquipePage() {
           {/* Equipe */}
           <div>
             <h2 className="font-bold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2 px-1 mb-2">
-              <Shield className="w-3.5 h-3.5 text-sky-500" />
+              <Shield className="w-3.5 h-3.5 text-indigo-500" />
               Membros da Equipe
             </h2>
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -232,7 +232,7 @@ export default function EquipePage() {
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-base ${
                           user.role === "psicologo"
-                            ? "bg-sky-500/10 text-sky-600 dark:text-sky-400"
+                            ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
                             : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
                         }`}>
                           {user.nome.charAt(0)}
