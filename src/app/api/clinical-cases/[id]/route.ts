@@ -31,6 +31,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(async (ctx) => {
+    if (ctx.role !== "psicologo_admin") return errorResponse("Acesso negado.", 403);
     try {
       const { id } = await params;
       const existingCase = await findCase(id, ctx.tenantId);
@@ -63,6 +64,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(async (ctx) => {
+    if (ctx.role !== "psicologo_admin") return errorResponse("Acesso negado.", 403);
     try {
       const { id } = await params;
       const existingCase = await findCase(id, ctx.tenantId);

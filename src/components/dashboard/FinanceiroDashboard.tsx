@@ -73,7 +73,7 @@ export default function FinanceiroDashboard() {
       .then((r) => r.json())
       .then((d) => {
         if (d.success) {
-          setTransactions(d.data.data ?? []);
+          setTransactions(d.data.items ?? []);
           setTotal(d.data.total ?? 0);
         }
       })
