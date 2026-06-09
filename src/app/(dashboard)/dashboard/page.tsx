@@ -3,7 +3,7 @@ import { getRequestContext } from "@/lib/context";
 import DashboardOverview from "@/components/dashboard/DashboardOverview";
 
 export const metadata = {
-  title: "Visão Geral — PsicoFlow",
+  title: "Visão Geral — PsiGen",
   description: "Estatísticas da clínica e faturamento",
 };
 

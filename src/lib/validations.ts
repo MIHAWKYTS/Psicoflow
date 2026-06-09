@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // ===========================
-// PsicoFlow - Schemas de Validação (Zod)
+// PsiGen - Schemas de Validação (Zod)
 // ===========================
 
 // ─── CPF ────────────────────────────────────────────────

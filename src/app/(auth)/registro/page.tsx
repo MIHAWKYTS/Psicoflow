@@ -186,7 +186,7 @@ export default function RegistroPage() {
       {/* Link de Login */}
       <div className="text-center pt-2">
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Já possui registro no PsicoFlow?{" "}
+          Já possui registro no PsiGen?{" "}
           <Link
             href="/login"
             className="font-bold text-indigo-500 hover:text-indigo-600 transition-colors"

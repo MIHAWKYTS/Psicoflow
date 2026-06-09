@@ -1,5 +1,5 @@
 // ===========================
-// PsicoFlow - Helpers de API
+// PsiGen - Helpers de API
 // ===========================
 
 import { NextResponse } from "next/server";

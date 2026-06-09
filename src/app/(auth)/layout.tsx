@@ -23,7 +23,7 @@ export default function AuthLayout({
               Ψ
             </div>
             <span className="font-extrabold text-slate-900 dark:text-white text-xl tracking-tight">
-              PsicoFlow
+              PsiGen
             </span>
           </div>
 
@@ -39,7 +39,7 @@ export default function AuthLayout({
 
         {/* Branding e Versão */}
         <div className="relative z-10 text-white/80 font-semibold text-sm">
-          PsicoFlow v1.0.0
+          PsiGen v1.0.0
         </div>
 
         {/* Conteúdo Central */}
@@ -92,7 +92,7 @@ export default function AuthLayout({
 
         {/* Footer */}
         <div className="relative z-10 text-xs text-white/60 font-medium">
-          &copy; {new Date().getFullYear()} PsicoFlow. Todos os direitos reservados.
+          &copy; {new Date().getFullYear()} PsiGen. Todos os direitos reservados.
         </div>
       </div>
     </div>

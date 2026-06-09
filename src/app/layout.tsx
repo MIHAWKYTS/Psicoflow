@@ -10,7 +10,7 @@ const jakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "PsicoFlow — Gestão Inteligente para Psicólogos",
+  title: "PsiGen — Gestão Inteligente para Psicólogos",
   description:
     "SaaS completo para gestão de clínicas de psicologia: agenda, prontuários eletrônicos, controle financeiro e integração WhatsApp.",
 };

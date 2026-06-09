@@ -1,5 +1,5 @@
 // ===========================
-// PsicoFlow - Serviço de Autenticação
+// PsiGen - Serviço de Autenticação
 // ===========================
 
 import bcrypt from "bcryptjs";
@@ -9,7 +9,7 @@ import type { JWTPayload } from "@/types";
 
 const JWT_SECRET = process.env.JWT_SECRET || "TROCAR_POR_UM_SEGREDO_FORTE_EM_PRODUCAO";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
-const COOKIE_NAME = "psicoflow_token";
+const COOKIE_NAME = "psigen_token";
 
 // ─── Senha ──────────────────────────────────────────────
 
