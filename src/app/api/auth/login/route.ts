@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, generateToken, setAuthCookie } from "@/lib/auth";
 import { loginSchema } from "@/lib/validations";
-import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
@@ -12,7 +12,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
+    const body = await parseSafeBody(req);
+    if (!body) return errorResponse("Payload muito grande", 413);
 
     // Validação de entrada
     const parsed = loginSchema.safeParse(body);

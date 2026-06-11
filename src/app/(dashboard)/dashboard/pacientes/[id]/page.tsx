@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Loader2,
   CheckCircle,
+  CheckCircle2,
   AlertCircle,
   ExternalLink,
   Plus,
@@ -31,6 +32,7 @@ export default function PacientePerfilPage({
   const [financials, setFinancials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [financialLoading, setFinancialLoading] = useState(false);
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
 
   // Fetch patient + authenticated user in parallel
   useEffect(() => {
@@ -142,6 +144,24 @@ export default function PacientePerfilPage({
     }
   };
 
+  const handleMarkPaid = async (transId: string) => {
+    setMarkingPaid(transId);
+    try {
+      const res = await fetch(`/api/financial/${transId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statusPagamento: "pago" }),
+      });
+      if (res.ok) {
+        setFinancials((prev) =>
+          prev.map((t) => t.id === transId ? { ...t, statusPagamento: "pago" } : t)
+        );
+      }
+    } finally {
+      setMarkingPaid(null);
+    }
+  };
+
   const handleAddFinancial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFinancialDesc.trim() || !newFinancialVal) return;
@@ -231,17 +251,19 @@ export default function PacientePerfilPage({
           <span>Dados Pessoais</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab("financeiro")}
-          className={`flex items-center gap-2 px-5 py-3 border-b-2 text-sm font-bold transition-all ${
-            activeTab === "financeiro"
-              ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
-              : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-          }`}
-        >
-          <CreditCard className="w-4 h-4" />
-          <span>Financeiro</span>
-        </button>
+        {userRole !== "secretaria" && (
+          <button
+            onClick={() => setActiveTab("financeiro")}
+            className={`flex items-center gap-2 px-5 py-3 border-b-2 text-sm font-bold transition-all ${
+              activeTab === "financeiro"
+                ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
+                : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Financeiro</span>
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab("prontuario")}
@@ -503,6 +525,24 @@ export default function PacientePerfilPage({
               </form>
             )}
 
+            {/* Resumo financeiro */}
+            {financials.length > 0 && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
+                  <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Pago</p>
+                  <p className="text-lg font-extrabold text-emerald-700 dark:text-emerald-300 mt-0.5">
+                    R$ {financials.filter(t => t.statusPagamento === "pago").reduce((s, t) => s + Number(t.valor), 0).toFixed(2)}
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30">
+                  <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pendente</p>
+                  <p className="text-lg font-extrabold text-amber-700 dark:text-amber-300 mt-0.5">
+                    R$ {financials.filter(t => t.statusPagamento === "pendente").reduce((s, t) => s + Number(t.valor), 0).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Lista Financeira do Paciente */}
             {financialLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -531,7 +571,7 @@ export default function PacientePerfilPage({
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                       <span className="font-extrabold text-slate-850 dark:text-slate-200 text-sm">
                         R$ {Number(trans.valor).toFixed(2)}
                       </span>
@@ -544,6 +584,20 @@ export default function PacientePerfilPage({
                       >
                         {trans.statusPagamento}
                       </span>
+                      {trans.statusPagamento === "pendente" && userRole !== "secretaria" && (
+                        <button
+                          onClick={() => handleMarkPaid(trans.id)}
+                          disabled={markingPaid === trans.id}
+                          className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 rounded-lg transition-all disabled:opacity-50"
+                        >
+                          {markingPaid === trans.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-3 h-3" />
+                          )}
+                          Pago
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

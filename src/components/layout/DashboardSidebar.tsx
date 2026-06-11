@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -16,6 +16,7 @@ import {
   Shield,
   LogOut,
   Settings,
+  Package,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
@@ -26,6 +27,7 @@ interface SidebarProps {
   userName: string;
   isOpen?: boolean;
   onClose?: () => void;
+  features?: { estoque?: boolean };
 }
 
 const roleLabels: Record<string, string> = {
@@ -66,7 +68,8 @@ const navSections = [
     label: "Gestão",
     items: [
       { name: "Equipe",         href: "/dashboard/equipe",         icon: Users2,       adminOnly: true },
-      { name: "Financeiro",     href: "/dashboard/financeiro",     icon: DollarSign },
+      { name: "Financeiro",     href: "/dashboard/financeiro",     icon: DollarSign,   adminOnly: true },
+      { name: "Estoque",        href: "/dashboard/estoque",        icon: Package,      stockBadge: true },
       { name: "Engajamento",    href: "/dashboard/engajamento",    icon: MessageSquare },
       { name: "Configurações",  href: "/dashboard/configuracoes",  icon: Settings,     adminOnly: true },
     ],
@@ -78,16 +81,33 @@ export default function DashboardSidebar({
   userName,
   isOpen = false,
   onClose,
+  features,
 }: SidebarProps) {
   const pathname = usePathname();
   const firstName = getFirstName(userName);
   const initials = getInitials(userName);
   const roleLabel = roleLabels[userRole] ?? "Psicólogo(a)";
+  const [stockAlertCount, setStockAlertCount] = useState(0);
 
   useEffect(() => {
     if (onClose) onClose();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  useEffect(() => {
+    if (userRole === "psicologo") return;
+    fetch("/api/stock")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.data)) {
+          const count = d.data.filter(
+            (i: any) => Number(i.quantidadeAtual) <= Number(i.quantidadeMinima)
+          ).length;
+          setStockAlertCount(count);
+        }
+      })
+      .catch(() => {});
+  }, [userRole]);
 
   const handleLogout = async () => {
     try {
@@ -126,6 +146,7 @@ export default function DashboardSidebar({
           const visibleItems = section.items.filter((item) => {
             if ((item as any).restricted && userRole === "secretaria") return false;
             if ((item as any).adminOnly && userRole !== "psicologo_admin") return false;
+            if ((item as any).stockBadge && !features?.estoque) return false;
             return true;
           });
 
@@ -162,6 +183,11 @@ export default function DashboardSidebar({
                       )}
                       <Icon className={`w-4.5 h-4.5 shrink-0 transition-colors ${isActive ? "text-indigo-400" : "text-slate-500 group-hover:text-slate-300"}`} />
                       <span className="flex-1">{item.name}</span>
+                      {(item as any).stockBadge && stockAlertCount > 0 && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                          {stockAlertCount}
+                        </span>
+                      )}
                       {(item as any).restricted && (
                         <Shield className="w-3.5 h-3.5 text-slate-600" />
                       )}

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
-import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers";
 
 const addDocumentSchema = z.object({
   documentUrl: z.string().min(1, "URL do documento é obrigatória"),
@@ -23,7 +23,8 @@ export async function POST(
         return errorResponse("Caso clínico não encontrado", 404);
       }
 
-      const body = await req.json();
+      const body = await parseSafeBody(req);
+      if (!body) return errorResponse("Payload muito grande", 413);
       const parsed = addDocumentSchema.safeParse(body);
       if (!parsed.success) {
         const errorMsg = parsed.error.issues.map((i) => i.message).join(", ");

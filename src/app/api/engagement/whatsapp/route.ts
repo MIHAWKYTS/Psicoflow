@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
-import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers";
 
 export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
-    const body = await req.json().catch(() => ({}));
+    const body = (await parseSafeBody(req)) ?? {};
     const { patientId, mensagem, files } = body as {
       patientId?: string;
       mensagem?: string;
