@@ -3,7 +3,7 @@ import { parseISO, isValid } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
 import { taskSchema } from "@/lib/validations";
-import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers";
 
 export async function GET(req: NextRequest) {
   return withAuth(async (ctx) => {
@@ -34,7 +34,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
     try {
-      const body = await req.json();
+      const body = await parseSafeBody(req);
+      if (!body) return errorResponse("Payload muito grande", 413);
       const parsed = taskSchema.safeParse(body);
       if (!parsed.success) {
         const errorMsg = parsed.error.issues.map((i) => i.message).join(", ");

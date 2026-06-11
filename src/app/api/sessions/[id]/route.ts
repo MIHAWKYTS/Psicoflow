@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
 import { sessionSchema } from "@/lib/validations";
-import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers";
 import { parseISO } from "date-fns";
 
 async function findSessionOrError(id: string, tenantId: string) {
@@ -47,7 +47,8 @@ export async function PUT(
         return errorResponse("Sessão não encontrada", 404);
       }
 
-      const body = await req.json();
+      const body = await parseSafeBody(req);
+      if (!body) return errorResponse("Payload muito grande", 413);
       const parsed = sessionSchema.safeParse(body);
 
       if (!parsed.success) {

@@ -41,7 +41,6 @@ export const PUBLIC_ROUTES = [
   "/registro",
   "/esqueci-senha",
   "/resetar-senha",
-  "/suspensao",
   "/admin/login",
 ] as const;
 

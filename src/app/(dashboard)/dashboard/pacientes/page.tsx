@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Search, Phone, Calendar, CreditCard, ChevronRight, X, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
+import CpfInput from "@/components/CpfInput";
 
 type Patient = {
   id: string;
@@ -33,13 +34,6 @@ function maskPhone(value: string): string {
   return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
 }
 
-function maskCPF(value: string): string {
-  const d = value.replace(/\D/g, "").slice(0, 11);
-  return d
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-}
 
 export default function PacientesPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -341,11 +335,9 @@ export default function PacientesPage() {
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     CPF
                   </label>
-                  <input
-                    type="text"
+                  <CpfInput
                     value={form.cpf}
-                    onChange={(e) => set("cpf", maskCPF(e.target.value))}
-                    placeholder="000.000.000-00"
+                    onChange={(val) => set("cpf", val)}
                     className={inputClass}
                   />
                 </div>

@@ -2,8 +2,25 @@
 // PsiGen - Helpers de API
 // ===========================
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import type { ApiResponse } from "@/types";
+
+export const BODY_SIZE_LIMIT_BYTES = 512 * 1024; // 512 KB
+
+export async function parseSafeBody<T = any>(
+  req: NextRequest,
+  maxBytes: number = BODY_SIZE_LIMIT_BYTES
+): Promise<T | null> {
+  const contentLength = req.headers.get("content-length");
+  if (contentLength && parseInt(contentLength) > maxBytes) {
+    return null;
+  }
+  try {
+    return (await req.json()) as T;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Resposta de sucesso padronizada.

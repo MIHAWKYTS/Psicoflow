@@ -30,6 +30,7 @@ model Tenant {
   tasks                 Task[]
   users                 User[]
   whatsappInstances     WhatsAppInstance[]
+  stockItems            StockItem[]
 
   @@map("tenants")
 }
@@ -366,4 +367,45 @@ enum FormaPagamento {
   dinheiro
   pix
   cartao
+}
+
+/// Item de estoque — insumo ou material da clínica.
+model StockItem {
+  id                String          @id @default(uuid()) @db.Uuid
+  tenantId          String          @map("tenant_id") @db.Uuid
+  nome              String
+  categoria         String?
+  unidade           String
+  quantidadeAtual   Decimal         @default(0) @map("quantidade_atual") @db.Decimal(10, 3)
+  quantidadeMinima  Decimal         @default(0) @map("quantidade_minima") @db.Decimal(10, 3)
+  custoUnitario     Decimal?        @map("custo_unitario") @db.Decimal(10, 2)
+  fornecedor        String?
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  movimentos        StockMovement[]
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("stock_items")
+}
+
+/// Movimentação de estoque — entrada, saída ou ajuste.
+model StockMovement {
+  id          String              @id @default(uuid()) @db.Uuid
+  stockItemId String              @map("stock_item_id") @db.Uuid
+  tipo        TipoMovimentoEstoque
+  quantidade  Decimal             @db.Decimal(10, 3)
+  motivo      String?
+  usuarioId   String?             @map("usuario_id") @db.Uuid
+  createdAt   DateTime            @default(now()) @map("created_at")
+  item        StockItem           @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+
+  @@index([stockItemId])
+  @@map("stock_movements")
+}
+
+enum TipoMovimentoEstoque {
+  entrada
+  saida
+  ajuste
 }

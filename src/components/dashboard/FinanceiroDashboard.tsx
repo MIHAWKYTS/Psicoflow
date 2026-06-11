@@ -11,7 +11,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { DollarSign, TrendingUp, TrendingDown, Wallet, Search } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Wallet, Search, CheckCircle2, Loader2 } from "lucide-react";
 import FinanceiroForm from "./FinanceiroForm";
 
 type MonthSummary = { mes: string; receita: number; despesa: number };
@@ -55,12 +55,34 @@ export default function FinanceiroDashboard() {
   const [page, setPage] = useState(1);
   const [filterTipo, setFilterTipo] = useState("todos");
   const [filterStatus, setFilterStatus] = useState("todos");
+  const [filterCategoria, setFilterCategoria] = useState("todos");
   const [search, setSearch] = useState("");
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+
+  async function handleMarkPaid(id: string) {
+    setMarkingPaid(id);
+    try {
+      const res = await fetch(`/api/financial/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statusPagamento: "pago" }),
+      });
+      if (res.ok) {
+        setTransactions((prev) =>
+          prev.map((t) => t.id === id ? { ...t, statusPagamento: "pago" } : t)
+        );
+      }
+    } finally {
+      setMarkingPaid(null);
+    }
+  }
   const [receitaMes, setReceitaMes] = useState(0);
   const [despesaMes, setDespesaMes] = useState(0);
 
   useEffect(() => {
-    fetch("/api/financial/summary")
+    const params = new URLSearchParams();
+    if (filterCategoria !== "todos") params.set("categoria", filterCategoria);
+    fetch(`/api/financial/summary?${params}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.success && Array.isArray(d.data)) {
@@ -70,12 +92,13 @@ export default function FinanceiroDashboard() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [filterCategoria]);
 
   useEffect(() => {
     const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
     if (filterTipo !== "todos") params.set("tipo", filterTipo);
     if (filterStatus !== "todos") params.set("status", filterStatus);
+    if (filterCategoria !== "todos") params.set("categoria", filterCategoria);
 
     fetch(`/api/financial?${params}`)
       .then((r) => r.json())
@@ -86,7 +109,7 @@ export default function FinanceiroDashboard() {
         }
       })
       .catch(() => {});
-  }, [page, filterTipo, filterStatus]);
+  }, [page, filterTipo, filterStatus, filterCategoria]);
 
   const filtered = search
     ? transactions.filter((t) =>
@@ -121,8 +144,31 @@ export default function FinanceiroDashboard() {
     },
   ];
 
+  const CATEGORIA_OPTIONS = [
+    { value: "todos", label: "Todos" },
+    { value: "consultorio", label: "Clínica" },
+    { value: "pessoal", label: "Pessoal" },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Toggle clínica / pessoal */}
+      <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-fit">
+        {CATEGORIA_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => { setFilterCategoria(opt.value); setPage(1); }}
+            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+              filterCategoria === opt.value
+                ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {kpis.map((k) => {
@@ -233,6 +279,7 @@ export default function FinanceiroDashboard() {
                 <th className="px-6 py-4">Valor</th>
                 <th className="px-6 py-4">Vencimento</th>
                 <th className="px-6 py-4 text-right">Status</th>
+                <th className="px-6 py-4"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -281,11 +328,27 @@ export default function FinanceiroDashboard() {
                         {STATUS_LABELS[t.statusPagamento] ?? t.statusPagamento}
                       </span>
                     </td>
+                    <td className="px-6 py-4 text-right">
+                      {t.statusPagamento === "pendente" && (
+                        <button
+                          onClick={() => handleMarkPaid(t.id)}
+                          disabled={markingPaid === t.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 rounded-lg transition-all disabled:opacity-50"
+                        >
+                          {markingPaid === t.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          )}
+                          Pago
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400 text-sm">
                     Nenhum lançamento encontrado.
                   </td>
                 </tr>

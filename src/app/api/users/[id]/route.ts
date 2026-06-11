@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
-import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers";
 
 // ─── PATCH /api/users/[id] (Ativar / Desativar membro) ────────
 export async function PATCH(
@@ -14,7 +14,8 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const body = await req.json();
+    const body = await parseSafeBody(req);
+    if (!body) return errorResponse("Payload muito grande", 413);
     const { ativo } = body;
 
     if (typeof ativo !== "boolean") {

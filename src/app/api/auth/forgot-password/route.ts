@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { sendEmail, buildPasswordResetEmail } from "@/lib/email";
-import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const schema = z.object({
@@ -18,7 +18,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
+    const body = await parseSafeBody(req);
+    if (!body) return errorResponse("Payload muito grande", 413);
     const parsed = schema.safeParse(body);
 
     if (!parsed.success) {

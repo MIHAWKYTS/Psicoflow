@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Mail, Lock, User, Briefcase, FileText, Loader2, ArrowRight } from "lucide-react";
+import { Mail, Lock, User, Briefcase, Loader2, ArrowRight } from "lucide-react";
+import DocumentInput from "@/components/DocumentInput";
 
 export default function RegistroPage() {
   const [nome, setNome] = useState("");
@@ -116,17 +117,11 @@ export default function RegistroPage() {
           <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
             Documento (CPF ou CNPJ)
           </label>
-          <div className="relative">
-            <FileText className="absolute left-3.5 top-3 w-4.5 h-4.5 text-slate-400" />
-            <input
-              type="text"
-              value={documento}
-              onChange={(e) => setDocumento(e.target.value)}
-              placeholder="Apenas números"
-              className="w-full pl-11 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400"
-              required
-            />
-          </div>
+          <DocumentInput
+            value={documento}
+            onChange={setDocumento}
+            className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400"
+          />
         </div>
 
         {/* E-mail */}

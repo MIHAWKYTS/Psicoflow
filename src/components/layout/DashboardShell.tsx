@@ -12,6 +12,7 @@ interface DashboardShellProps {
   userName: string;
   statusAssinatura: "trial" | "ativo" | "inadimplente" | "cancelado";
   dataFimTrial?: string | null;
+  features?: { estoque?: boolean };
   children: React.ReactNode;
 }
 
@@ -20,6 +21,7 @@ export default function DashboardShell({
   userName,
   statusAssinatura,
   dataFimTrial,
+  features,
   children,
 }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,6 +41,7 @@ export default function DashboardShell({
         userName={userName}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        features={features}
       />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
