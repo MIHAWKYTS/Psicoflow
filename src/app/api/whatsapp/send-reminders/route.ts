@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
-import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers";
 import { createJob, updateJob } from "@/lib/reminder-jobs";
 import { v4 as uuidv4 } from "uuid";
 
@@ -131,7 +131,7 @@ async function processReminders(jobId: string, tenantId: string, dateStr?: strin
 // ─── POST /api/whatsapp/send-reminders ───────────────────────
 export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
-    const body = await req.json().catch(() => ({}));
+    const body = (await parseSafeBody(req)) ?? {};
     const dateStr: string | undefined = body?.date;
 
     const { start, end } = getBRTBounds(dateStr);

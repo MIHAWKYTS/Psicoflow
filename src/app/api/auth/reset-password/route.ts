@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyToken } from "@/lib/auth";
-import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers";
 
 const schema = z.object({
   token: z.string().min(1, "Token obrigatório"),
@@ -11,7 +11,8 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await parseSafeBody(req);
+    if (!body) return errorResponse("Payload muito grande", 413);
     const parsed = schema.safeParse(body);
 
     if (!parsed.success) {

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, generateToken, setAuthCookie } from "@/lib/auth";
 import { registroSchema } from "@/lib/validations";
-import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers";
 import { addDays } from "date-fns";
 import { TRIAL_DURATION_DAYS } from "@/lib/constants";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
+    const body = await parseSafeBody(req);
+    if (!body) return errorResponse("Payload muito grande", 413);
     
     // Validação de entrada
     const parsed = registroSchema.safeParse(body);

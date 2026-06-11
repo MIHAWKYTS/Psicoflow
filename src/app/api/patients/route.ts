@@ -7,6 +7,7 @@ import {
   errorResponse,
   getPaginationParams,
   paginatedResponse,
+  parseSafeBody,
 } from "@/lib/api-helpers";
 
 // ─── GET /api/patients (Listar Pacientes) ───────────────────
@@ -52,7 +53,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
     try {
-      const body = await req.json();
+      const body = await parseSafeBody(req);
+      if (!body) return errorResponse("Payload muito grande", 413);
       
       const parsed = patientSchema.safeParse(body);
       if (!parsed.success) {

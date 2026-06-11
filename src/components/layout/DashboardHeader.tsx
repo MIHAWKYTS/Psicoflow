@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import ThemeToggle from "../ThemeToggle";
 import { Bell, Sparkles, Menu } from "lucide-react";
 
@@ -97,13 +98,13 @@ export default function DashboardHeader({
       {/* Direita: upgrade CTA + notificações + tema */}
       <div className="flex items-center gap-2">
         {statusAssinatura === "trial" && (
-          <button
-            type="button"
-            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/20 hover:shadow-md hover:shadow-indigo-500/30 transition-all cursor-pointer"
+          <Link
+            href="/dashboard/pagamento"
+            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/20 hover:shadow-md hover:shadow-indigo-500/30 transition-all"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Assinar agora</span>
-          </button>
+          </Link>
         )}
 
         <button

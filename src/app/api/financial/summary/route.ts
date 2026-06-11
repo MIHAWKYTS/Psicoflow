@@ -4,14 +4,19 @@ import { withAuth } from "@/lib/context";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import type { CategoriaTransacao } from "@prisma/client";
 
 // ─── GET /api/financial/summary (Receita vs Despesa — últimos 6 meses) ──
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   return withAuth(async (ctx) => {
     if (ctx.role === "secretaria") {
       return errorResponse("Acesso negado.", 403);
     }
 
+    const { searchParams } = new URL(req.url);
+    const categoriaRaw = searchParams.get("categoria");
+    const categoria: CategoriaTransacao | undefined =
+      categoriaRaw === "consultorio" || categoriaRaw === "pessoal" ? categoriaRaw : undefined;
     const now = new Date();
 
     const months = Array.from({ length: 6 }, (_, i) => {
@@ -32,6 +37,7 @@ export async function GET(_req: NextRequest) {
               tipo: "receita",
               statusPagamento: "pago",
               dataVencimento: { gte: start, lte: end },
+              ...(categoria ? { categoria } : {}),
             },
             _sum: { valor: true },
           }),
@@ -40,6 +46,7 @@ export async function GET(_req: NextRequest) {
               tenantId: ctx.tenantId,
               tipo: "despesa",
               dataVencimento: { gte: start, lte: end },
+              ...(categoria ? { categoria } : {}),
             },
             _sum: { valor: true },
           }),
@@ -47,8 +54,8 @@ export async function GET(_req: NextRequest) {
 
         return {
           mes: label.charAt(0).toUpperCase() + label.slice(1),
-          receita: Number(receitas._sum.valor ?? 0),
-          despesa: Number(despesas._sum.valor ?? 0),
+          receita: Number(receitas._sum?.valor ?? 0),
+          despesa: Number(despesas._sum?.valor ?? 0),
         };
       })
     );

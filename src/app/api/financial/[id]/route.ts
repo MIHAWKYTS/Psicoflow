@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
 import { financialTransactionSchema } from "@/lib/validations";
-import { successResponse, errorResponse } from "@/lib/api-helpers";
+import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers";
 import { parseISO } from "date-fns";
 
 async function findTransactionOrError(id: string, tenantId: string) {
@@ -60,7 +60,8 @@ export async function PUT(
         return errorResponse("Transação não encontrada", 404);
       }
 
-      const body = await req.json();
+      const body = await parseSafeBody(req);
+      if (!body) return errorResponse("Payload muito grande", 413);
       const parsed = financialTransactionSchema.safeParse(body);
 
       if (!parsed.success) {
@@ -114,6 +115,50 @@ export async function PUT(
     } catch (err) {
       console.error("Erro ao atualizar transação:", err);
       return errorResponse("Erro interno no servidor ao atualizar transação", 500);
+    }
+  });
+}
+
+// ─── PATCH /api/financial/[id] (Marcar como Pago) ──────────
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return withAuth(async (ctx) => {
+    if (ctx.role !== "psicologo_admin") {
+      return errorResponse("Acesso negado. Apenas o administrador pode alterar o status do pagamento.", 403);
+    }
+
+    try {
+      const { id } = await params;
+      const transaction = await findTransactionOrError(id, ctx.tenantId);
+
+      if (!transaction) {
+        return errorResponse("Transação não encontrada", 404);
+      }
+
+      const body = await parseSafeBody(req);
+      if (!body) return errorResponse("Payload muito grande", 413);
+      const { statusPagamento, dataPagamento } = body;
+
+      if (!["pago", "pendente", "cancelado"].includes(statusPagamento)) {
+        return errorResponse("Status de pagamento inválido", 400);
+      }
+
+      const updated = await prisma.financialTransaction.update({
+        where: { id },
+        data: {
+          statusPagamento,
+          dataPagamento: statusPagamento === "pago"
+            ? (dataPagamento ? new Date(dataPagamento) : new Date())
+            : null,
+        },
+      });
+
+      return successResponse(updated, "Status atualizado com sucesso");
+    } catch (err) {
+      console.error("Erro ao atualizar status:", err);
+      return errorResponse("Erro interno ao atualizar status", 500);
     }
   });
 }

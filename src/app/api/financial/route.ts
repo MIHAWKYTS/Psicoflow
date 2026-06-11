@@ -7,6 +7,7 @@ import {
   errorResponse,
   getPaginationParams,
   paginatedResponse,
+  parseSafeBody,
 } from "@/lib/api-helpers";
 import { parseISO, isValid } from "date-fns";
 
@@ -21,8 +22,9 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const { page, limit, skip } = getPaginationParams(searchParams);
 
-    const tipo = searchParams.get("tipo") || undefined; // 'receita' ou 'despesa'
-    const status = searchParams.get("status") || undefined; // 'pendente', 'pago', 'cancelado'
+    const tipo = searchParams.get("tipo") || undefined;
+    const status = searchParams.get("status") || undefined;
+    const categoria = searchParams.get("categoria") || undefined;
     const patientIdFilter = searchParams.get("patientId") || undefined;
     const inicioStr = searchParams.get("inicio");
     const fimStr = searchParams.get("fim");
@@ -41,6 +43,10 @@ export async function GET(req: NextRequest) {
 
     if (status === "pendente" || status === "pago" || status === "cancelado") {
       where.statusPagamento = status;
+    }
+
+    if (categoria === "consultorio" || categoria === "pessoal") {
+      where.categoria = categoria;
     }
 
     if (inicioStr && fimStr) {
@@ -81,7 +87,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
     try {
-      const body = await req.json();
+      const body = await parseSafeBody(req);
+      if (!body) return errorResponse("Payload muito grande", 413);
       const parsed = financialTransactionSchema.safeParse(body);
 
       if (!parsed.success) {
