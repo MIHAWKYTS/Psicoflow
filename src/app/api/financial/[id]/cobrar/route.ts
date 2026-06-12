@@ -6,16 +6,24 @@ import {
   findOrCreateCustomer,
   createCharge,
   cancelCharge,
+  cancelSubscription,
+  createSubscription,
   resolvePaymentLink,
   type AsaasBillingType,
+  type AsaasCycle,
+  type AsaasModalidade,
 } from "@/lib/asaas";
 import { format } from "date-fns";
 
 const ALLOWED_BILLING_TYPES: AsaasBillingType[] = ["PIX", "BOLETO", "CREDIT_CARD", "UNDEFINED"];
+const ALLOWED_CYCLES: AsaasCycle[] = ["WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY", "SEMIANNUALLY", "YEARLY"];
+const ALLOWED_MODALIDADES: AsaasModalidade[] = ["avulso", "parcelado", "recorrente"];
 
 // ─── POST /api/financial/:id/cobrar ────────────────────────────────────────
-// Gera (ou regenera) uma cobrança Asaas para a transação informada.
-// Body: { billingType: "PIX" | "BOLETO" | "CREDIT_CARD" | "UNDEFINED" }
+// Body:
+//   avulso:    { billingType, modalidade: "avulso" }
+//   parcelado: { billingType, modalidade: "parcelado", parcelas: number }
+//   recorrente:{ billingType, modalidade: "recorrente", ciclo: AsaasCycle }
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -27,7 +35,6 @@ export async function POST(
 
     const { id } = await params;
 
-    // Busca a transação garantindo isolamento por tenant
     const transaction = await prisma.financialTransaction.findFirst({
       where: { id, tenantId: ctx.tenantId },
       include: {
@@ -45,40 +52,29 @@ export async function POST(
     });
 
     if (!transaction) return errorResponse("Transação não encontrada", 404);
-    if (transaction.statusPagamento === "pago") {
-      return errorResponse("Esta transação já está paga", 409);
-    }
-    if (transaction.statusPagamento === "cancelado") {
-      return errorResponse("Transação cancelada não pode ser cobrada", 409);
-    }
-    if (transaction.tipo !== "receita") {
-      return errorResponse("Só é possível gerar cobrança para receitas", 422);
-    }
-    if (!transaction.patient) {
-      return errorResponse("Transação sem paciente vinculado. Associe um paciente para gerar cobrança.", 422);
-    }
+    if (transaction.statusPagamento === "pago") return errorResponse("Esta transação já está paga", 409);
+    if (transaction.statusPagamento === "cancelado") return errorResponse("Transação cancelada não pode ser cobrada", 409);
+    if (transaction.tipo !== "receita") return errorResponse("Só é possível gerar cobrança para receitas", 422);
+    if (!transaction.patient) return errorResponse("Associe um paciente para gerar cobrança.", 422);
 
-    // Valida billingType
     let body: any;
-    try {
-      body = await req.json();
-    } catch {
-      body = {};
-    }
+    try { body = await req.json(); } catch { body = {}; }
+
     const billingType: AsaasBillingType = body?.billingType ?? "PIX";
+    const modalidade: AsaasModalidade = body?.modalidade ?? "avulso";
+
     if (!ALLOWED_BILLING_TYPES.includes(billingType)) {
       return errorResponse(`billingType inválido. Use: ${ALLOWED_BILLING_TYPES.join(", ")}`, 400);
     }
+    if (!ALLOWED_MODALIDADES.includes(modalidade)) {
+      return errorResponse(`modalidade inválida. Use: ${ALLOWED_MODALIDADES.join(", ")}`, 400);
+    }
 
     try {
-      // Se já existe uma cobrança ativa, cancela antes de recriar
-      if (transaction.asaasChargeId) {
-        await cancelCharge(transaction.asaasChargeId).catch(() => {
-          // ignora erro de cancelamento (pode já estar cancelada no Asaas)
-        });
-      }
+      // Cancela cobrança/assinatura anterior antes de recriar
+      await cleanupExisting(transaction);
 
-      // Garante que o paciente existe como cliente no Asaas
+      // Garante cliente no Asaas
       const asaasCustomer = await findOrCreateCustomer({
         name: transaction.patient.nome,
         cpfCnpj: transaction.patient.cpf ?? undefined,
@@ -86,7 +82,6 @@ export async function POST(
         mobilePhone: transaction.patient.telefoneWhatsapp ?? undefined,
       });
 
-      // Persiste o asaasCustomerId no paciente se ainda não tiver
       if (!transaction.patient.asaasCustomerId) {
         await prisma.patient.update({
           where: { id: transaction.patient.id },
@@ -94,40 +89,106 @@ export async function POST(
         });
       }
 
-      // Cria a cobrança no Asaas
-      const charge = await createCharge({
-        customer: asaasCustomer.id,
-        billingType,
-        value: Number(transaction.valor),
-        dueDate: format(transaction.dataVencimento, "yyyy-MM-dd"),
-        description: transaction.descricao || "Consulta psicológica",
-        externalReference: transaction.id,
-      });
+      const valor = Number(transaction.valor);
+      const dueDate = format(transaction.dataVencimento, "yyyy-MM-dd");
+      const description = transaction.descricao || "Consulta psicológica";
 
-      const linkPagamento = resolvePaymentLink(charge);
+      // ── Avulso ──────────────────────────────────────────
+      if (modalidade === "avulso") {
+        const charge = await createCharge({
+          customer: asaasCustomer.id,
+          billingType,
+          value: valor,
+          dueDate,
+          description,
+          externalReference: transaction.id,
+        });
 
-      // Salva IDs e link na transação
-      const updated = await prisma.financialTransaction.update({
-        where: { id: transaction.id },
-        data: {
-          asaasChargeId: charge.id,
-          asaasLinkPagamento: linkPagamento,
-        },
-      });
+        const linkPagamento = resolvePaymentLink(charge);
 
-      return successResponse(
-        {
-          asaasChargeId: charge.id,
-          billingType: charge.billingType,
-          status: charge.status,
-          linkPagamento,
-          pixCopiaECola: charge.pixCopiaECola ?? null,
-          valor: updated.valor,
-          vencimento: format(transaction.dataVencimento, "yyyy-MM-dd"),
-        },
-        "Cobrança gerada com sucesso",
-        201
-      );
+        await prisma.financialTransaction.update({
+          where: { id: transaction.id },
+          data: { asaasChargeId: charge.id, asaasLinkPagamento: linkPagamento, asaasSubscriptionId: null },
+        });
+
+        return successResponse(
+          { modalidade, asaasChargeId: charge.id, billingType, status: charge.status, linkPagamento, pixCopiaECola: charge.pixCopiaECola ?? null, vencimento: dueDate },
+          "Cobrança avulsa gerada com sucesso",
+          201
+        );
+      }
+
+      // ── Parcelado ────────────────────────────────────────
+      if (modalidade === "parcelado") {
+        const parcelas = Number(body?.parcelas ?? transaction.parcelas ?? 1);
+        if (!Number.isInteger(parcelas) || parcelas < 2 || parcelas > 120) {
+          return errorResponse("parcelas deve ser um inteiro entre 2 e 120", 400);
+        }
+
+        const installmentValue = parseFloat((valor / parcelas).toFixed(2));
+
+        const charge = await createCharge({
+          customer: asaasCustomer.id,
+          billingType,
+          value: valor,
+          dueDate,
+          description,
+          externalReference: transaction.id,
+          installmentCount: parcelas,
+          installmentValue,
+        });
+
+        const linkPagamento = resolvePaymentLink(charge);
+
+        await prisma.financialTransaction.update({
+          where: { id: transaction.id },
+          data: {
+            asaasChargeId: charge.id,
+            asaasLinkPagamento: linkPagamento,
+            asaasSubscriptionId: null,
+            parcelas,
+          },
+        });
+
+        return successResponse(
+          { modalidade, asaasChargeId: charge.id, installmentGroupId: charge.installment, billingType, status: charge.status, linkPagamento, parcelas, valorParcela: installmentValue, vencimento: dueDate },
+          `Cobrança parcelada em ${parcelas}x gerada com sucesso`,
+          201
+        );
+      }
+
+      // ── Recorrente ───────────────────────────────────────
+      if (modalidade === "recorrente") {
+        const ciclo: AsaasCycle = body?.ciclo ?? "MONTHLY";
+        if (!ALLOWED_CYCLES.includes(ciclo)) {
+          return errorResponse(`ciclo inválido. Use: ${ALLOWED_CYCLES.join(", ")}`, 400);
+        }
+
+        const subscription = await createSubscription({
+          customer: asaasCustomer.id,
+          billingType,
+          value: valor,
+          nextDueDate: dueDate,
+          cycle: ciclo,
+          description,
+          externalReference: transaction.id,
+        });
+
+        await prisma.financialTransaction.update({
+          where: { id: transaction.id },
+          data: {
+            asaasSubscriptionId: subscription.id,
+            asaasChargeId: null,
+            asaasLinkPagamento: null,
+          },
+        });
+
+        return successResponse(
+          { modalidade, asaasSubscriptionId: subscription.id, billingType, ciclo, status: subscription.status, proximoVencimento: subscription.nextDueDate },
+          "Assinatura recorrente criada com sucesso",
+          201
+        );
+      }
     } catch (err: any) {
       console.error("[Asaas] Erro ao gerar cobrança:", err?.message);
       return errorResponse(err?.message ?? "Erro ao gerar cobrança no Asaas", 502);
@@ -136,7 +197,6 @@ export async function POST(
 }
 
 // ─── DELETE /api/financial/:id/cobrar ──────────────────────────────────────
-// Cancela a cobrança Asaas vinculada à transação.
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -150,11 +210,11 @@ export async function DELETE(
 
     const transaction = await prisma.financialTransaction.findFirst({
       where: { id, tenantId: ctx.tenantId },
-      select: { id: true, asaasChargeId: true, statusPagamento: true },
+      select: { id: true, asaasChargeId: true, asaasSubscriptionId: true, statusPagamento: true },
     });
 
     if (!transaction) return errorResponse("Transação não encontrada", 404);
-    if (!transaction.asaasChargeId) {
+    if (!transaction.asaasChargeId && !transaction.asaasSubscriptionId) {
       return errorResponse("Nenhuma cobrança Asaas vinculada a esta transação", 404);
     }
     if (transaction.statusPagamento === "pago") {
@@ -162,15 +222,11 @@ export async function DELETE(
     }
 
     try {
-      await cancelCharge(transaction.asaasChargeId);
+      await cleanupExisting(transaction);
 
       await prisma.financialTransaction.update({
         where: { id: transaction.id },
-        data: {
-          asaasChargeId: null,
-          asaasLinkPagamento: null,
-          statusPagamento: "cancelado",
-        },
+        data: { asaasChargeId: null, asaasLinkPagamento: null, asaasSubscriptionId: null, statusPagamento: "cancelado" },
       });
 
       return successResponse(null, "Cobrança cancelada com sucesso");
@@ -179,4 +235,16 @@ export async function DELETE(
       return errorResponse(err?.message ?? "Erro ao cancelar cobrança no Asaas", 502);
     }
   });
+}
+
+// Cancela cobrança ou assinatura existente antes de recriar
+async function cleanupExisting(transaction: {
+  asaasChargeId: string | null;
+  asaasSubscriptionId: string | null;
+}) {
+  if (transaction.asaasSubscriptionId) {
+    await cancelSubscription(transaction.asaasSubscriptionId).catch(() => {});
+  } else if (transaction.asaasChargeId) {
+    await cancelCharge(transaction.asaasChargeId).catch(() => {});
+  }
 }

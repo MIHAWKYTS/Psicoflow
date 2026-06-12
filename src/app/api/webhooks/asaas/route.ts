@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Eventos do Asaas que nos interessam
 const PAYMENT_PAID_EVENTS = new Set(["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"]);
 const PAYMENT_CANCELLED_EVENTS = new Set(["PAYMENT_DELETED", "PAYMENT_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_CHARGEBACK_DISPUTE"]);
 const PAYMENT_OVERDUE_EVENTS = new Set(["PAYMENT_OVERDUE"]);
 
 function validateToken(req: NextRequest): boolean {
   const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
-  // Se não houver token configurado, bloqueia por segurança
   if (!webhookToken) return false;
-  const receivedToken = req.headers.get("asaas-access-token");
-  return receivedToken === webhookToken;
+  return req.headers.get("asaas-access-token") === webhookToken;
 }
 
 export async function POST(req: NextRequest) {
-  // ── Autenticação do webhook ─────────────────────────────────
   if (!validateToken(req)) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -28,50 +24,71 @@ export async function POST(req: NextRequest) {
   }
 
   const { event, payment } = body ?? {};
-
   if (!event || !payment) {
     return NextResponse.json({ error: "Payload incompleto" }, { status: 400 });
   }
 
-  // externalReference deve conter o ID da FinancialTransaction no nosso banco
-  const transactionId = payment.externalReference as string | undefined;
+  const externalReference = payment.externalReference as string | undefined;
+  const subscriptionId = payment.subscription as string | undefined;
 
-  if (!transactionId) {
-    // Evento sem referência interna — confirmamos recebimento e ignoramos
+  // Tenta encontrar a transação original pelo externalReference ou pelo subscriptionId
+  let originalTx = externalReference
+    ? await prisma.financialTransaction.findUnique({ where: { id: externalReference } })
+    : null;
+
+  if (!originalTx && subscriptionId) {
+    originalTx = await prisma.financialTransaction.findFirst({
+      where: { asaasSubscriptionId: subscriptionId },
+    });
+  }
+
+  if (!originalTx) {
+    // Evento desconhecido — confirma recebimento para o Asaas não retentar
     return NextResponse.json({ received: true });
   }
 
   try {
     if (PAYMENT_PAID_EVENTS.has(event)) {
-      await prisma.financialTransaction.updateMany({
-        where: { id: transactionId },
-        data: {
-          statusPagamento: "pago",
-          dataPagamento: new Date(),
-        },
-      });
+      // Pagamento de assinatura com transação original já paga → cria nova entrada no fluxo de caixa
+      if (subscriptionId && originalTx.statusPagamento === "pago") {
+        await prisma.financialTransaction.create({
+          data: {
+            tenantId: originalTx.tenantId,
+            patientId: originalTx.patientId,
+            tipo: originalTx.tipo,
+            categoria: originalTx.categoria,
+            descricao: originalTx.descricao,
+            valor: originalTx.valor,
+            statusPagamento: "pago",
+            dataVencimento: payment.dueDate ? new Date(payment.dueDate) : new Date(),
+            dataPagamento: new Date(),
+            formaPagamento: originalTx.formaPagamento,
+            asaasChargeId: payment.id as string,
+            asaasSubscriptionId: subscriptionId,
+          },
+        });
+      } else {
+        await prisma.financialTransaction.update({
+          where: { id: originalTx.id },
+          data: { statusPagamento: "pago", dataPagamento: new Date() },
+        });
+      }
     } else if (PAYMENT_CANCELLED_EVENTS.has(event)) {
-      await prisma.financialTransaction.updateMany({
-        where: { id: transactionId },
+      await prisma.financialTransaction.update({
+        where: { id: originalTx.id },
         data: { statusPagamento: "cancelado" },
       });
     } else if (PAYMENT_OVERDUE_EVENTS.has(event)) {
-      await prisma.financialTransaction.updateMany({
-        where: { id: transactionId, statusPagamento: "pendente" },
-        data: { statusPagamento: "pendente" },
-      });
+      // Mantém pendente — sem status separado para vencido no schema atual
     }
-    // Demais eventos (PAYMENT_CREATED, etc.) são ignorados silenciosamente
   } catch (err: any) {
     console.error("[Asaas Webhook] Erro ao processar evento:", event, err?.message);
-    // Retorna 500 para o Asaas retentar o envio
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });
 }
 
-// Bloqueia qualquer outro método
 export async function GET() {
   return NextResponse.json({ error: "Método não permitido" }, { status: 405 });
 }
