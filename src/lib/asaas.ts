@@ -85,7 +85,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const msg = (body as any)?.errors?.[0]?.description ?? res.statusText;
+    console.error(`[Asaas] ${options.method ?? "GET"} ${path} → ${res.status}`, JSON.stringify(body));
+    const msg =
+      (body as any)?.errors?.[0]?.description ??
+      (body as any)?.description ??
+      (body as any)?.message ??
+      res.statusText;
     throw new Error(`Asaas ${res.status}: ${msg}`);
   }
 
@@ -139,9 +144,23 @@ export async function getCharge(asaasChargeId: string): Promise<AsaasCharge> {
   return request<AsaasCharge>(`/payments/${asaasChargeId}`);
 }
 
-// QR code PIX não vem na criação da cobrança — precisa de chamada separada
+// QR code PIX não vem na criação da cobrança — precisa de chamada separada.
+// O Asaas pode demorar alguns segundos para gerar o QR junto ao Banco Central,
+// por isso tentamos até 5 vezes com backoff antes de desistir.
 export async function getPixQrCode(chargeId: string): Promise<AsaasPixQrCode> {
-  return request<AsaasPixQrCode>(`/payments/${chargeId}/pixQrCode`);
+  const MAX_ATTEMPTS = 5;
+  const DELAY_MS = 1500;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      return await request<AsaasPixQrCode>(`/payments/${chargeId}/pixQrCode`);
+    } catch (err: any) {
+      if (attempt === MAX_ATTEMPTS) throw err;
+      await new Promise((r) => setTimeout(r, DELAY_MS * attempt));
+    }
+  }
+
+  throw new Error("QR code PIX não disponível após múltiplas tentativas");
 }
 
 // ─── Assinaturas (recorrente/sequencial) ────────────────────
