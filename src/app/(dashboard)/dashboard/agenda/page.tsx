@@ -7,6 +7,10 @@ const AgendaReminderModal = dynamic(
   () => import("@/components/dashboard/AgendaReminderModal"),
   { ssr: false }
 );
+const AgendaDayModal = dynamic(
+  () => import("@/components/dashboard/AgendaDayModal"),
+  { ssr: false }
+);
 import {
   startOfMonth,
   endOfMonth,
@@ -102,6 +106,9 @@ export default function AgendaPage() {
   const [formStartTime, setFormStartTime] = useState("09:00");
   const [formEndTime, setFormEndTime] = useState("10:00");
   const [formStatus, setFormStatus] = useState<"agendada" | "realizada" | "cancelada" | "falta">("agendada");
+
+  // Modal de dia
+  const [modalDay, setModalDay] = useState<Date | null>(null);
 
   // Modal de lembretes em massa
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -225,7 +232,11 @@ export default function AgendaPage() {
   };
 
   // ─── SIDEBAR ─────────────────────────────────────────────
-  const handleDayClick = (date: Date) => {
+  const handleDayClick = (date: Date, hasSessions = false) => {
+    if (hasSessions) {
+      setModalDay(date);
+      return;
+    }
     setSelectedDate(date);
     setFormDate(format(date, "yyyy-MM-dd"));
     setFormStartTime("09:00");
@@ -674,7 +685,7 @@ export default function AgendaPage() {
               return (
                 <div
                   key={day.toString() + idx}
-                  onClick={() => handleDayClick(day)}
+                  onClick={() => handleDayClick(day, sortedSessions.length > 0)}
                   className={`min-h-[120px] bg-white dark:bg-slate-900 p-2 flex flex-col gap-1.5 transition-all select-none relative group cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-900/40 ${
                     !isCurrentMonth ? "bg-slate-50/40 dark:bg-slate-950/10 opacity-40" : ""
                   } ${
@@ -744,6 +755,20 @@ export default function AgendaPage() {
           ))}
         </div>
       </div>
+
+      {/* ─── MODAL DE DIA ─── */}
+      {modalDay && (
+        <AgendaDayModal
+          day={modalDay}
+          sessions={sessions.filter((s) => isSameDay(parseISO(s.dataHoraInicio), modalDay)) as any}
+          onClose={() => setModalDay(null)}
+          onSelectSession={(session) => {
+            setModalDay(null);
+            const full = sessions.find((s) => s.id === (session as any).id);
+            if (full) handleSessionClick({ stopPropagation: () => {} } as React.MouseEvent, full);
+          }}
+        />
+      )}
 
       {/* ─── MODAL DE LEMBRETES EM MASSA ─── */}
       {showReminderModal && (
