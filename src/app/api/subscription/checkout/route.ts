@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
-import { findOrCreateCustomer, createCharge, type AsaasBillingType } from "@/lib/asaas";
+import { findOrCreateCustomer, createCharge, getPixQrCode, type AsaasBillingType } from "@/lib/asaas";
 import { format, addDays } from "date-fns";
 
 export const SUBSCRIPTION_PRICE = 120;
@@ -65,13 +65,18 @@ export async function POST(req: NextRequest) {
         return successResponse({ tipo: "cartao", invoiceUrl: charge.invoiceUrl }, "Redirecionando para pagamento");
       }
 
-      // ── PIX: retorna QR code e copia-e-cola ────────────────
+      // ── PIX: busca QR code em endpoint separado ────────────
       if (billingType === "PIX") {
-        if (!charge.pixQrCodeUrl || !charge.pixCopiaECola) {
-          return errorResponse("QR code PIX não gerado", 502);
-        }
+        const pix = await getPixQrCode(charge.id);
         return successResponse(
-          { tipo: "pix", chargeId: charge.id, pixQrCodeUrl: charge.pixQrCodeUrl, pixCopiaECola: charge.pixCopiaECola, valor: SUBSCRIPTION_PRICE, vencimento: dueDate },
+          {
+            tipo: "pix",
+            chargeId: charge.id,
+            pixQrCodeBase64: pix.encodedImage,
+            pixCopiaECola: pix.payload,
+            valor: SUBSCRIPTION_PRICE,
+            vencimento: dueDate,
+          },
           "QR code PIX gerado"
         );
       }
