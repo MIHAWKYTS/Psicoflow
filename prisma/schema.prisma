@@ -90,6 +90,7 @@ model Patient {
   endereco              String?
   email                 String?
   telefoneWhatsapp      String?                @map("telefone_whatsapp")
+  asaasCustomerId       String?                @map("asaas_customer_id")
   status                StatusPaciente         @default(ativo)
   frequenciaSessoes     FrequenciaSessoes?     @map("frequencia_sessoes")
   valorSessaoPadrao     Decimal?               @map("valor_sessao_padrao") @db.Decimal(10, 2)
@@ -195,8 +196,10 @@ model FinancialTransaction {
   dataPagamento   DateTime?          @map("data_pagamento")
   formaPagamento  FormaPagamento?    @map("forma_pagamento")
   parcelas        Int?               @default(1)
-  mpPaymentId     String?            @map("mp_payment_id")
-  mpLinkPagamento String?            @map("mp_link_pagamento")
+  mpPaymentId        String?            @map("mp_payment_id")
+  mpLinkPagamento    String?            @map("mp_link_pagamento")
+  asaasChargeId      String?            @map("asaas_charge_id")
+  asaasLinkPagamento String?            @map("asaas_link_pagamento")
   createdAt       DateTime           @default(now()) @map("created_at")
   updatedAt       DateTime           @updatedAt @map("updated_at")
   patient         Patient?           @relation(fields: [patientId], references: [id])
