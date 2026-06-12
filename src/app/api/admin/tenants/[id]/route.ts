@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminToken } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { parseSafeBody } from "@/lib/api-helpers";
+import { cancelSubscription } from "@/lib/asaas";
 import { addDays } from "date-fns";
 
 const VALID_STATUS = ["trial", "ativo", "inadimplente", "cancelado"] as const;
@@ -77,6 +78,13 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: "statusAssinatura inválido" }, { status: 400 });
     }
     updateData.statusAssinatura = statusAssinatura;
+
+    if (statusAssinatura === "cancelado" && existing.asaasSubscriptionId) {
+      await cancelSubscription(existing.asaasSubscriptionId).catch((err) =>
+        console.warn("[admin] Falha ao cancelar subscription no Asaas:", err?.message)
+      );
+      updateData.asaasSubscriptionId = null;
+    }
   }
 
   const updated = await prisma.tenant.update({ where: { id }, data: updateData });
