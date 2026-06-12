@@ -7,6 +7,8 @@ const BASE_URL =
     : "https://sandbox.asaas.com/api/v3";
 
 export type AsaasBillingType = "PIX" | "BOLETO" | "CREDIT_CARD" | "UNDEFINED";
+export type AsaasCycle = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "SEMIANNUALLY" | "YEARLY";
+export type AsaasModalidade = "avulso" | "parcelado" | "recorrente";
 
 export interface AsaasCustomerInput {
   name: string;
@@ -23,13 +25,15 @@ export interface AsaasCustomer {
 }
 
 export interface AsaasChargeInput {
-  customer: string;          // Asaas customer ID
+  customer: string;
   billingType: AsaasBillingType;
   value: number;
   dueDate: string;           // YYYY-MM-DD
   description?: string;
-  externalReference?: string; // ID interno da transação
-  postalService?: boolean;
+  externalReference?: string;
+  // parcelado
+  installmentCount?: number;
+  installmentValue?: number;
 }
 
 export interface AsaasCharge {
@@ -43,12 +47,30 @@ export interface AsaasCharge {
   pixQrCodeUrl: string | null;
   pixCopiaECola: string | null;
   externalReference: string | null;
+  installment: string | null; // ID do grupo de parcelas
 }
 
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
+export interface AsaasSubscriptionInput {
+  customer: string;
+  billingType: AsaasBillingType;
+  value: number;
+  nextDueDate: string;       // YYYY-MM-DD (vencimento da 1ª cobrança)
+  cycle: AsaasCycle;
+  description?: string;
+  externalReference?: string;
+}
+
+export interface AsaasSubscription {
+  id: string;
+  status: string;
+  billingType: AsaasBillingType;
+  value: number;
+  nextDueDate: string;
+  cycle: AsaasCycle;
+  externalReference: string | null;
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const apiKey = process.env.ASAAS_API_KEY;
   if (!apiKey) throw new Error("ASAAS_API_KEY não configurado");
 
@@ -70,11 +92,11 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
-// Cria um cliente no Asaas. Se já existir com mesmo CPF/CNPJ, retorna o existente.
+// ─── Clientes ───────────────────────────────────────────────
+
 export async function findOrCreateCustomer(
   input: AsaasCustomerInput
 ): Promise<AsaasCustomer> {
-  // Tenta buscar por CPF/CNPJ primeiro para evitar duplicatas
   if (input.cpfCnpj) {
     const cpfCnpj = input.cpfCnpj.replace(/\D/g, "");
     const list = await request<{ data: AsaasCustomer[] }>(
@@ -94,7 +116,8 @@ export async function findOrCreateCustomer(
   });
 }
 
-// Cria uma cobrança (PIX, boleto ou cartão) no Asaas.
+// ─── Cobranças avulsas e parceladas ─────────────────────────
+
 export async function createCharge(input: AsaasChargeInput): Promise<AsaasCharge> {
   return request<AsaasCharge>("/payments", {
     method: "POST",
@@ -102,17 +125,35 @@ export async function createCharge(input: AsaasChargeInput): Promise<AsaasCharge
   });
 }
 
-// Cancela uma cobrança no Asaas.
 export async function cancelCharge(asaasChargeId: string): Promise<void> {
   await request(`/payments/${asaasChargeId}`, { method: "DELETE" });
 }
 
-// Busca detalhes de uma cobrança (útil para checar status manualmente).
 export async function getCharge(asaasChargeId: string): Promise<AsaasCharge> {
   return request<AsaasCharge>(`/payments/${asaasChargeId}`);
 }
 
-// Retorna o link de pagamento mais adequado conforme o tipo de cobrança.
+// ─── Assinaturas (recorrente/sequencial) ────────────────────
+
+export async function createSubscription(
+  input: AsaasSubscriptionInput
+): Promise<AsaasSubscription> {
+  return request<AsaasSubscription>("/subscriptions", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function cancelSubscription(subscriptionId: string): Promise<void> {
+  await request(`/subscriptions/${subscriptionId}`, { method: "DELETE" });
+}
+
+export async function getSubscription(subscriptionId: string): Promise<AsaasSubscription> {
+  return request<AsaasSubscription>(`/subscriptions/${subscriptionId}`);
+}
+
+// ─── Helpers ────────────────────────────────────────────────
+
 export function resolvePaymentLink(charge: AsaasCharge): string | null {
   return charge.invoiceUrl ?? charge.bankSlipUrl ?? null;
 }
