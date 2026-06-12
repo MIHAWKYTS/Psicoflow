@@ -52,7 +52,7 @@ export default function LandingPricing() {
             {/* Price */}
             <div className="flex items-baseline gap-1 mb-2">
               <span className="text-2xl font-bold text-slate-500 dark:text-slate-400">R$</span>
-              <span className="text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight">150</span>
+              <span className="text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight">120</span>
               <span className="text-lg font-semibold text-slate-400">/mês</span>
             </div>
 

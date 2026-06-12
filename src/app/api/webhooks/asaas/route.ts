@@ -31,25 +31,42 @@ export async function POST(req: NextRequest) {
   const externalReference = payment.externalReference as string | undefined;
   const subscriptionId = payment.subscription as string | undefined;
 
-  // Tenta encontrar a transação original pelo externalReference ou pelo subscriptionId
-  let originalTx = externalReference
-    ? await prisma.financialTransaction.findUnique({ where: { id: externalReference } })
-    : null;
-
-  if (!originalTx && subscriptionId) {
-    originalTx = await prisma.financialTransaction.findFirst({
-      where: { asaasSubscriptionId: subscriptionId },
-    });
-  }
-
-  if (!originalTx) {
-    // Evento desconhecido — confirma recebimento para o Asaas não retentar
-    return NextResponse.json({ received: true });
-  }
-
   try {
+    // ── Assinatura do tenant (pagamento da plataforma) ──────────
+    if (externalReference?.startsWith("sub_tenant_")) {
+      const tenantId = externalReference.replace("sub_tenant_", "");
+
+      if (PAYMENT_PAID_EVENTS.has(event)) {
+        await prisma.tenant.update({
+          where: { id: tenantId },
+          data: { statusAssinatura: "ativo" },
+        });
+      } else if (PAYMENT_CANCELLED_EVENTS.has(event)) {
+        await prisma.tenant.update({
+          where: { id: tenantId },
+          data: { statusAssinatura: "inadimplente" },
+        });
+      }
+
+      return NextResponse.json({ received: true });
+    }
+
+    // ── Cobrança de paciente (fluxo de caixa da clínica) ────────
+    let originalTx = externalReference
+      ? await prisma.financialTransaction.findUnique({ where: { id: externalReference } })
+      : null;
+
+    if (!originalTx && subscriptionId) {
+      originalTx = await prisma.financialTransaction.findFirst({
+        where: { asaasSubscriptionId: subscriptionId },
+      });
+    }
+
+    if (!originalTx) {
+      return NextResponse.json({ received: true });
+    }
+
     if (PAYMENT_PAID_EVENTS.has(event)) {
-      // Pagamento de assinatura com transação original já paga → cria nova entrada no fluxo de caixa
       if (subscriptionId && originalTx.statusPagamento === "pago") {
         await prisma.financialTransaction.create({
           data: {
@@ -78,8 +95,6 @@ export async function POST(req: NextRequest) {
         where: { id: originalTx.id },
         data: { statusPagamento: "cancelado" },
       });
-    } else if (PAYMENT_OVERDUE_EVENTS.has(event)) {
-      // Mantém pendente — sem status separado para vencido no schema atual
     }
   } catch (err: any) {
     console.error("[Asaas Webhook] Erro ao processar evento:", event, err?.message);
