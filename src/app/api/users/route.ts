@@ -7,12 +7,20 @@ import bcrypt from "bcryptjs";
 // ─── GET /api/users (Listar equipe) ───────────────────────────
 export async function GET(req: NextRequest) {
   return withAuth(async (ctx) => {
-    if (ctx.role === "secretaria") {
+    const { searchParams } = new URL(req.url);
+    const psicologosOnly = searchParams.get("psicologos") === "true";
+
+    if (ctx.role === "secretaria" && !psicologosOnly) {
       return errorResponse("Acesso negado", 403);
     }
 
+    const where: Record<string, unknown> = { tenantId: ctx.tenantId };
+    if (psicologosOnly) {
+      where.role = { in: ["psicologo", "psicologo_admin"] };
+    }
+
     const users = await prisma.user.findMany({
-      where: { tenantId: ctx.tenantId },
+      where,
       select: {
         id: true,
         nome: true,

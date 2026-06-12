@@ -6,6 +6,7 @@ import { successResponse, errorResponse, parseSafeBody } from "@/lib/api-helpers
 import { addDays } from "date-fns";
 import { TRIAL_DURATION_DAYS } from "@/lib/constants";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { createCustomer } from "@/lib/asaas";
 
 export async function POST(req: NextRequest) {
   const { limited, retryAfter } = checkRateLimit(getClientIp(req));
@@ -63,6 +64,18 @@ export async function POST(req: NextRequest) {
 
       return user;
     });
+
+    // Cria customer no Asaas de forma assíncrona — falhas não bloqueiam o registro
+    const adminEmail = result.email;
+    const tenantIdForAsaas = result.tenantId;
+    createCustomer({ name: nomeClinica, cpfCnpj: documento, email: adminEmail })
+      .then((customer) =>
+        prisma.tenant.update({
+          where: { id: tenantIdForAsaas },
+          data: { asaasCustomerId: customer.id },
+        })
+      )
+      .catch((err) => console.warn("[registro] Asaas customer não criado:", err?.message));
 
     const token = generateToken({
       userId: result.id,
