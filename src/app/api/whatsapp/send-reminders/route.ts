@@ -48,7 +48,7 @@ function getBRTBounds(dateStr?: string) {
   };
 }
 
-async function processReminders(jobId: string, tenantId: string, dateStr?: string) {
+async function processReminders(jobId: string, tenantId: string, dateStr?: string, templateId?: string) {
   try {
     const { start, end } = getBRTBounds(dateStr);
 
@@ -82,6 +82,16 @@ async function processReminders(jobId: string, tenantId: string, dateStr?: strin
       return;
     }
 
+    let templateText: string | null = null;
+    if (templateId) {
+      const tpl = await prisma.whatsAppMessageTemplate.findFirst({ where: { id: templateId, tenantId } });
+      if (tpl) templateText = tpl.mensagem;
+    }
+    if (!templateText) {
+      const defaultTpl = await prisma.whatsAppMessageTemplate.findFirst({ where: { tenantId, isDefault: true } });
+      if (defaultTpl) templateText = defaultTpl.mensagem;
+    }
+
     let sent = 0;
     let skipped = 0;
 
@@ -94,6 +104,16 @@ async function processReminders(jobId: string, tenantId: string, dateStr?: strin
         continue;
       }
 
+      const horario = new Date(session.dataHoraInicio).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "America/Sao_Paulo",
+      });
+      const nome = session.patient?.nome ?? "paciente";
+      const text = templateText
+        ? templateText.replace(/\{\{nome\}\}/g, nome).replace(/\{\{horario\}\}/g, horario)
+        : `Olá, ${nome}! Gostaria de confirmar a sessão que está marcada para ${horario}. Podemos confirmar?`;
+
       try {
         const digits = phone.replace(/\D/g, "");
         await fetch(`${evolutionUrl}/message/sendText/${instance.instanceName}`, {
@@ -104,7 +124,7 @@ async function processReminders(jobId: string, tenantId: string, dateStr?: strin
           },
           body: JSON.stringify({
             number: `55${digits}`,
-            text: `Olá, ${session.patient?.nome ?? "paciente"}! Gostaria de confirmar a sessão que está marcada para ${new Date(session.dataHoraInicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}. Podemos confirmar?`,
+            text,
           }),
         });
 
@@ -133,6 +153,7 @@ export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
     const body = (await parseSafeBody(req)) ?? {};
     const dateStr: string | undefined = body?.date;
+    const templateId: string | undefined = body?.templateId;
 
     const { start, end } = getBRTBounds(dateStr);
 
@@ -152,7 +173,7 @@ export async function POST(req: NextRequest) {
     const jobId = uuidv4();
     createJob(jobId, eligible);
 
-    processReminders(jobId, ctx.tenantId, dateStr).catch(console.error);
+    processReminders(jobId, ctx.tenantId, dateStr, templateId).catch(console.error);
 
     return successResponse({ jobId, total: eligible });
   });

@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
         skip,
         take: limit,
         orderBy: { nome: "asc" },
+        include: { psicologo: { select: { id: true, nome: true } } },
       }),
     ]);
 

@@ -387,13 +387,13 @@ export default function AgendaPage() {
     }
   };
 
-  const handleSendReminders = async () => {
+  const handleSendReminders = async (templateId?: string) => {
     setReminderSending(true);
     try {
       const res = await fetch("/api/whatsapp/send-reminders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: reminderDate }),
+        body: JSON.stringify({ date: reminderDate, ...(templateId && { templateId }) }),
       });
       const data = await res.json();
       if (!res.ok) {

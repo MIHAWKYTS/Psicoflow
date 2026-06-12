@@ -65,6 +65,41 @@ export async function PUT(
   });
 }
 
+// ─── PATCH /api/patients/[id] (Atualizar psicologoId) ───────
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return withAuth(async (ctx) => {
+    try {
+      const { id } = await params;
+      const patient = await findPatientOrError(id, ctx.tenantId);
+      if (!patient) return errorResponse("Paciente não encontrado", 404);
+
+      const body = await parseSafeBody(req);
+      if (!body) return errorResponse("Payload muito grande", 413);
+
+      const { psicologoId } = body as { psicologoId?: string | null };
+
+      if (psicologoId !== undefined && psicologoId !== null) {
+        const user = await prisma.user.findFirst({ where: { id: psicologoId, tenantId: ctx.tenantId } });
+        if (!user) return errorResponse("Psicólogo não encontrado", 404);
+      }
+
+      const updated = await prisma.patient.update({
+        where: { id },
+        data: { psicologoId: psicologoId ?? null },
+        include: { psicologo: { select: { id: true, nome: true } } },
+      });
+
+      return successResponse(updated);
+    } catch (err) {
+      console.error("Erro ao atualizar psicólogo do paciente:", err);
+      return errorResponse("Erro interno no servidor", 500);
+    }
+  });
+}
+
 // ─── DELETE /api/patients/[id] (Remover Paciente) ───────────
 export async function DELETE(
   req: NextRequest,

@@ -29,6 +29,7 @@ type TenantDetail = {
   statusAssinatura: string;
   isActive: boolean;
   createdAt: string;
+  dataFimTrial?: string | null;
   _count: { patients: number };
   users: TenantUser[];
 };
@@ -64,6 +65,16 @@ export default function AdminDashboardPage() {
   const [tenantDetail, setTenantDetail]     = useState<TenantDetail | null>(null);
   const [loadingDetail, setLoadingDetail]   = useState(false);
 
+  // Trial extension
+  const [extendDays, setExtendDays]           = useState("");
+  const [extendSaving, setExtendSaving]       = useState(false);
+  const [extendError, setExtendError]         = useState("");
+
+  // StatusAssinatura override
+  const [drawerStatus, setDrawerStatus]       = useState("");
+  const [statusSaving, setStatusSaving]       = useState(false);
+  const [statusError, setStatusError]         = useState("");
+
   // ── Carregar lista ──
   useEffect(() => {
     fetch("/api/admin/tenants")
@@ -92,9 +103,17 @@ export default function AdminDashboardPage() {
     setSelectedId(id);
     setTenantDetail(null);
     setLoadingDetail(true);
+    setExtendDays("");
+    setExtendError("");
+    setStatusError("");
     fetch(`/api/admin/tenants/${id}`)
       .then((r) => r.json())
-      .then((d) => { if (d.success) setTenantDetail(d.data); })
+      .then((d) => {
+        if (d.success) {
+          setTenantDetail(d.data);
+          setDrawerStatus(d.data.statusAssinatura ?? "");
+        }
+      })
       .catch(() => {})
       .finally(() => setLoadingDetail(false));
   }
@@ -123,6 +142,58 @@ export default function AdminDashboardPage() {
     } catch {
       setTenants((prev) => prev.map((t) => t.id === tenant.id ? { ...t, isActive: tenant.isActive } : t));
       setErroToggle(`Erro de conexão ao atualizar "${tenant.nomeClinica}".`);
+    }
+  }
+
+  async function handleExtendTrial() {
+    const days = parseInt(extendDays, 10);
+    if (!tenantDetail || isNaN(days) || days <= 0) {
+      setExtendError("Informe um número de dias positivo.");
+      return;
+    }
+    setExtendSaving(true);
+    setExtendError("");
+    try {
+      const res = await fetch(`/api/admin/tenants/${tenantDetail.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ extendTrialDays: days }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setTenantDetail((prev) => prev ? { ...prev, dataFimTrial: d.data.dataFimTrial } : prev);
+        setExtendDays("");
+      } else {
+        setExtendError(d.error ?? "Erro ao estender trial.");
+      }
+    } catch {
+      setExtendError("Erro de conexão.");
+    } finally {
+      setExtendSaving(false);
+    }
+  }
+
+  async function handleSaveStatus() {
+    if (!tenantDetail || !drawerStatus) return;
+    setStatusSaving(true);
+    setStatusError("");
+    try {
+      const res = await fetch(`/api/admin/tenants/${tenantDetail.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statusAssinatura: drawerStatus }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setTenantDetail((prev) => prev ? { ...prev, statusAssinatura: drawerStatus } : prev);
+        setTenants((prev) => prev.map((t) => t.id === tenantDetail.id ? { ...t, statusAssinatura: drawerStatus } : t));
+      } else {
+        setStatusError(d.error ?? "Erro ao salvar status.");
+      }
+    } catch {
+      setStatusError("Erro de conexão.");
+    } finally {
+      setStatusSaving(false);
     }
   }
 
@@ -326,6 +397,73 @@ export default function AdminDashboardPage() {
                   </dl>
                 ) : null}
               </section>
+
+              {/* Gerenciar assinatura */}
+              {tenantDetail && (
+                <section>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
+                    Gerenciar assinatura
+                  </h3>
+                  <div className="space-y-4">
+                    {/* Trial extension */}
+                    <div className="rounded-lg bg-slate-800/50 p-4 space-y-3">
+                      <p className="text-xs text-slate-400">
+                        Trial expira em:{" "}
+                        <span className="text-slate-200 font-medium">
+                          {tenantDetail.dataFimTrial
+                            ? new Date(tenantDetail.dataFimTrial).toLocaleDateString("pt-BR")
+                            : "—"}
+                        </span>
+                      </p>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="number"
+                          min={1}
+                          value={extendDays}
+                          onChange={(e) => { setExtendDays(e.target.value); setExtendError(""); }}
+                          placeholder="+ N dias"
+                          className="flex-1 px-3 py-2 text-sm rounded-lg bg-slate-700 border border-slate-600 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleExtendTrial}
+                          disabled={extendSaving}
+                          className="px-3 py-2 text-xs font-semibold bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-lg transition-all"
+                        >
+                          {extendSaving ? "..." : "Estender trial"}
+                        </button>
+                      </div>
+                      {extendError && <p className="text-xs text-red-400">{extendError}</p>}
+                    </div>
+
+                    {/* Status override */}
+                    <div className="rounded-lg bg-slate-800/50 p-4 space-y-3">
+                      <p className="text-xs text-slate-400">Status da assinatura</p>
+                      <div className="flex gap-2 items-center">
+                        <select
+                          value={drawerStatus}
+                          onChange={(e) => { setDrawerStatus(e.target.value); setStatusError(""); }}
+                          className="flex-1 px-3 py-2 text-sm rounded-lg bg-slate-700 border border-slate-600 text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500"
+                        >
+                          <option value="trial">Trial</option>
+                          <option value="ativo">Ativo</option>
+                          <option value="inadimplente">Inadimplente</option>
+                          <option value="cancelado">Cancelado</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleSaveStatus}
+                          disabled={statusSaving}
+                          className="px-3 py-2 text-xs font-semibold bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-lg transition-all"
+                        >
+                          {statusSaving ? "..." : "Salvar status"}
+                        </button>
+                      </div>
+                      {statusError && <p className="text-xs text-red-400">{statusError}</p>}
+                    </div>
+                  </div>
+                </section>
+              )}
 
               {/* Equipe */}
               <section>

@@ -17,7 +17,6 @@ model Tenant {
   statusAssinatura      StatusAssinatura       @default(trial) @map("status_assinatura")
   isActive              Boolean                @default(true) @map("is_active")
   dataFimTrial          DateTime               @map("data_fim_trial")
-  mpCustomerId          String?                @map("mp_customer_id")
   asaasCustomerId       String?                @map("asaas_customer_id")
   asaasSubscriptionId   String?                @map("asaas_subscription_id")
   dataFimAcesso         DateTime?              @map("data_fim_acesso")
@@ -32,8 +31,9 @@ model Tenant {
   sessions              Session[]
   tasks                 Task[]
   users                 User[]
-  whatsappInstances     WhatsAppInstance[]
-  stockItems            StockItem[]
+  whatsappInstances        WhatsAppInstance[]
+  whatsappMessageTemplates WhatsAppMessageTemplate[]
+  stockItems               StockItem[]
 
   @@map("tenants")
 }
@@ -50,14 +50,15 @@ model User {
   ativo               Boolean              @default(true)
   createdAt           DateTime             @default(now()) @map("created_at")
   updatedAt           DateTime             @updatedAt @map("updated_at")
-  clinicalCases       ClinicalCase[]
-  clinicalEvolutions  ClinicalEvolution[]  @relation("AutorEvolucao")
-  clinicalRecords     ClinicalRecord[]     @relation("AutorProntuario")
-  passwordResetTokens PasswordResetToken[]
-  invalidatedTokens   InvalidatedToken[]
-  auditLogs           AuditLog[]
-  tasks               Task[]
-  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clinicalCases           ClinicalCase[]
+  clinicalEvolutions      ClinicalEvolution[]  @relation("AutorEvolucao")
+  clinicalRecords         ClinicalRecord[]     @relation("AutorProntuario")
+  passwordResetTokens     PasswordResetToken[]
+  invalidatedTokens       InvalidatedToken[]
+  auditLogs               AuditLog[]
+  tasks                   Task[]
+  pacientesResponsavel    Patient[]            @relation("PsicologoPaciente")
+  tenant                  Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@map("users")
@@ -94,6 +95,7 @@ model Patient {
   email                 String?
   telefoneWhatsapp      String?                @map("telefone_whatsapp")
   asaasCustomerId       String?                @map("asaas_customer_id")
+  psicologoId           String?                @map("psicologo_id") @db.Uuid
   status                StatusPaciente         @default(ativo)
   frequenciaSessoes     FrequenciaSessoes?     @map("frequencia_sessoes")
   valorSessaoPadrao     Decimal?               @map("valor_sessao_padrao") @db.Decimal(10, 2)
@@ -101,11 +103,13 @@ model Patient {
   updatedAt             DateTime               @updatedAt @map("updated_at")
   clinicalRecords       ClinicalRecord[]
   financialTransactions FinancialTransaction[]
+  psicologo             User?                  @relation("PsicologoPaciente", fields: [psicologoId], references: [id], onDelete: SetNull)
   tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sessions              Session[]
   tasks                 Task[]
 
   @@index([tenantId])
+  @@index([psicologoId])
   @@map("patients")
 }
 
@@ -415,4 +419,19 @@ enum TipoMovimentoEstoque {
   entrada
   saida
   ajuste
+}
+
+/// Template de mensagem WhatsApp reutilizável por tenant.
+model WhatsAppMessageTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  nome      String
+  mensagem  String
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("whatsapp_message_templates")
 }
