@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       if (PAYMENT_PAID_EVENTS.has(event)) {
         await prisma.tenant.update({
           where: { id: tenantId },
-          data: { statusAssinatura: "ativo" },
+          data: { statusAssinatura: "ativo", dataFimAcesso: null },
         });
       } else if (PAYMENT_CANCELLED_EVENTS.has(event)) {
         await prisma.tenant.update({

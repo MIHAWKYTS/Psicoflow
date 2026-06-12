@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/context";
 import WhatsAppConfig from "@/components/dashboard/WhatsAppConfig";
+import SubscriptionInfo from "@/components/dashboard/SubscriptionInfo";
 import { Settings } from "lucide-react";
 
 export default async function ConfiguracoesPage() {
@@ -26,6 +27,7 @@ export default async function ConfiguracoesPage() {
       </div>
 
       <WhatsAppConfig />
+      <SubscriptionInfo />
     </div>
   );
 }

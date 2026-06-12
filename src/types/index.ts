@@ -18,6 +18,7 @@ export interface JWTPayload {
   statusAssinatura: StatusAssinatura;
   isActive: boolean;
   dataFimTrial?: string;
+  dataFimAcesso?: string;
   iat?: number;
   exp?: number;
 }

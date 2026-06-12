@@ -2,7 +2,15 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/context";
 import { successResponse, errorResponse } from "@/lib/api-helpers";
-import { findOrCreateCustomer, createCharge, type AsaasBillingType } from "@/lib/asaas";
+import {
+  findOrCreateCustomer,
+  createCharge,
+  createSubscription,
+  cancelSubscription,
+  getSubscriptionPayments,
+  getPixQrCode,
+  type AsaasBillingType,
+} from "@/lib/asaas";
 import { format, addDays } from "date-fns";
 
 export const SUBSCRIPTION_PRICE = 120;
@@ -10,9 +18,9 @@ export const SUBSCRIPTION_PRICE = 120;
 const ALLOWED_BILLING_TYPES: AsaasBillingType[] = ["PIX", "BOLETO", "CREDIT_CARD"];
 
 // ─── POST /api/subscription/checkout ───────────────────────────────────────
-// PIX    → retorna pixQrCodeUrl + pixCopiaECola (exibição embedded)
-// Boleto → retorna bankSlipUrl (link do PDF)
-// Cartão → retorna invoiceUrl (redirect para hosted checkout do Asaas)
+// PIX    → cobrança avulsa, retorna QR code embedded
+// Boleto → cobrança avulsa, retorna link do PDF
+// Cartão → assinatura recorrente mensal, retorna invoiceUrl para hosted checkout
 export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
     if (ctx.role !== "psicologo_admin") {
@@ -50,6 +58,38 @@ export async function POST(req: NextRequest) {
 
       const dueDate = format(addDays(new Date(), 1), "yyyy-MM-dd");
 
+      // ── Cartão: assinatura recorrente mensal ────────────────
+      if (billingType === "CREDIT_CARD") {
+        // Cancela assinatura anterior se existir
+        if (tenant.asaasSubscriptionId) {
+          await cancelSubscription(tenant.asaasSubscriptionId).catch(() => {});
+        }
+
+        const subscription = await createSubscription({
+          customer: asaasCustomer.id,
+          billingType: "CREDIT_CARD",
+          value: SUBSCRIPTION_PRICE,
+          nextDueDate: dueDate,
+          cycle: "MONTHLY",
+          description: "Assinatura PsiGen — Plano Clínica",
+          externalReference: `sub_tenant_${tenant.id}`,
+        });
+
+        // Salva subscriptionId e limpa dataFimAcesso (reativação)
+        await prisma.tenant.update({
+          where: { id: tenant.id },
+          data: { asaasSubscriptionId: subscription.id, dataFimAcesso: null },
+        });
+
+        // Busca invoiceUrl da primeira cobrança gerada pela assinatura
+        const payments = await getSubscriptionPayments(subscription.id);
+        const invoiceUrl = payments.data[0]?.invoiceUrl ?? null;
+        if (!invoiceUrl) return errorResponse("Link de pagamento não gerado", 502);
+
+        return successResponse({ tipo: "cartao", invoiceUrl }, "Assinatura recorrente criada");
+      }
+
+      // ── PIX e Boleto: cobrança avulsa ───────────────────────
       const charge = await createCharge({
         customer: asaasCustomer.id,
         billingType,
@@ -59,19 +99,18 @@ export async function POST(req: NextRequest) {
         externalReference: `sub_tenant_${tenant.id}`,
       });
 
-      // ── Cartão: redireciona para hosted checkout do Asaas ──
-      if (billingType === "CREDIT_CARD") {
-        if (!charge.invoiceUrl) return errorResponse("Link de pagamento não gerado", 502);
-        return successResponse({ tipo: "cartao", invoiceUrl: charge.invoiceUrl }, "Redirecionando para pagamento");
-      }
-
-      // ── PIX: retorna QR code e copia-e-cola ────────────────
+      // ── PIX: busca QR code em endpoint separado ────────────
       if (billingType === "PIX") {
-        if (!charge.pixQrCodeUrl || !charge.pixCopiaECola) {
-          return errorResponse("QR code PIX não gerado", 502);
-        }
+        const pix = await getPixQrCode(charge.id);
         return successResponse(
-          { tipo: "pix", chargeId: charge.id, pixQrCodeUrl: charge.pixQrCodeUrl, pixCopiaECola: charge.pixCopiaECola, valor: SUBSCRIPTION_PRICE, vencimento: dueDate },
+          {
+            tipo: "pix",
+            chargeId: charge.id,
+            pixQrCodeBase64: pix.encodedImage,
+            pixCopiaECola: pix.payload,
+            valor: SUBSCRIPTION_PRICE,
+            vencimento: dueDate,
+          },
           "QR code PIX gerado"
         );
       }

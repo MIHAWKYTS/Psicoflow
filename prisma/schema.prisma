@@ -19,6 +19,8 @@ model Tenant {
   dataFimTrial          DateTime               @map("data_fim_trial")
   mpCustomerId          String?                @map("mp_customer_id")
   asaasCustomerId       String?                @map("asaas_customer_id")
+  asaasSubscriptionId   String?                @map("asaas_subscription_id")
+  dataFimAcesso         DateTime?              @map("data_fim_acesso")
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
   auditLogs             AuditLog[]
