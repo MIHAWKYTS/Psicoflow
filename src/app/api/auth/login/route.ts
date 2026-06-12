@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
       statusAssinatura,
       isActive: user.tenant.isActive,
       dataFimTrial: user.tenant.dataFimTrial?.toISOString(),
+      dataFimAcesso: user.tenant.dataFimAcesso?.toISOString(),
     });
 
     await setAuthCookie(token);

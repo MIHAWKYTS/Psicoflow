@@ -151,6 +151,23 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    // 2.7. Bloqueio por cancelamento — dataFimAcesso no passado
+    const dataFimAcesso = payload.dataFimAcesso as string | undefined;
+    if (dataFimAcesso && new Date(dataFimAcesso) < new Date()) {
+      const isAllowedRoute = INADIMPLENTE_ALLOWED_ROUTES.some((route) =>
+        pathname.startsWith(route)
+      );
+      if (!isAllowedRoute && pathname.startsWith("/dashboard")) {
+        return NextResponse.redirect(new URL("/dashboard/pagamento", request.url));
+      }
+      if (!isAllowedRoute && isApiRoute && !isPublicApiRoute) {
+        return NextResponse.json(
+          { success: false, error: "Assinatura encerrada. Renove para continuar usando o PsiGen." },
+          { status: 402 }
+        );
+      }
+    }
+
     // 3. Bloqueio por Inadimplência
     // Se inadimplente, só pode acessar rotas permitidas (como tela de pagamento)
     if (statusAssinatura === "inadimplente") {

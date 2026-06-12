@@ -163,6 +163,11 @@ export async function getSubscription(subscriptionId: string): Promise<AsaasSubs
   return request<AsaasSubscription>(`/subscriptions/${subscriptionId}`);
 }
 
+// Busca a primeira cobrança gerada pela assinatura para obter o invoiceUrl
+export async function getSubscriptionPayments(subscriptionId: string): Promise<{ data: AsaasCharge[] }> {
+  return request<{ data: AsaasCharge[] }>(`/payments?subscription=${subscriptionId}&limit=1`);
+}
+
 // ─── Helpers ────────────────────────────────────────────────
 
 export function resolvePaymentLink(charge: AsaasCharge): string | null {
