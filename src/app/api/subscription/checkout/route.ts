@@ -10,8 +10,9 @@ export const SUBSCRIPTION_PRICE = 120;
 const ALLOWED_BILLING_TYPES: AsaasBillingType[] = ["PIX", "BOLETO", "CREDIT_CARD"];
 
 // ─── POST /api/subscription/checkout ───────────────────────────────────────
-// Gera uma cobrança Asaas para a assinatura do tenant e retorna o invoiceUrl.
-// Apenas psicologo_admin pode assinar.
+// PIX    → retorna pixQrCodeUrl + pixCopiaECola (exibição embedded)
+// Boleto → retorna bankSlipUrl (link do PDF)
+// Cartão → retorna invoiceUrl (redirect para hosted checkout do Asaas)
 export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
     if (ctx.role !== "psicologo_admin") {
@@ -26,23 +27,20 @@ export async function POST(req: NextRequest) {
       return errorResponse(`billingType inválido. Use: ${ALLOWED_BILLING_TYPES.join(", ")}`, 400);
     }
 
-    // Busca o tenant e o usuário admin
     const [tenant, adminUser] = await Promise.all([
       prisma.tenant.findUnique({ where: { id: ctx.tenantId } }),
-      prisma.user.findUnique({ where: { id: ctx.userId }, select: { email: true, cpf: true } }),
+      prisma.user.findUnique({ where: { id: ctx.userId }, select: { email: true } }),
     ]);
 
     if (!tenant) return errorResponse("Tenant não encontrado", 404);
 
     try {
-      // Garante que o tenant existe como cliente no Asaas
       const asaasCustomer = await findOrCreateCustomer({
         name: tenant.nomeClinica,
         cpfCnpj: tenant.documento,
         email: adminUser?.email ?? ctx.email,
       });
 
-      // Persiste asaasCustomerId no tenant se ainda não tiver
       if (!tenant.asaasCustomerId) {
         await prisma.tenant.update({
           where: { id: tenant.id },
@@ -61,13 +59,30 @@ export async function POST(req: NextRequest) {
         externalReference: `sub_tenant_${tenant.id}`,
       });
 
-      if (!charge.invoiceUrl) {
-        return errorResponse("Não foi possível gerar o link de pagamento", 502);
+      // ── Cartão: redireciona para hosted checkout do Asaas ──
+      if (billingType === "CREDIT_CARD") {
+        if (!charge.invoiceUrl) return errorResponse("Link de pagamento não gerado", 502);
+        return successResponse({ tipo: "cartao", invoiceUrl: charge.invoiceUrl }, "Redirecionando para pagamento");
       }
 
+      // ── PIX: retorna QR code e copia-e-cola ────────────────
+      if (billingType === "PIX") {
+        if (!charge.pixQrCodeUrl || !charge.pixCopiaECola) {
+          return errorResponse("QR code PIX não gerado", 502);
+        }
+        return successResponse(
+          { tipo: "pix", chargeId: charge.id, pixQrCodeUrl: charge.pixQrCodeUrl, pixCopiaECola: charge.pixCopiaECola, valor: SUBSCRIPTION_PRICE, vencimento: dueDate },
+          "QR code PIX gerado"
+        );
+      }
+
+      // ── Boleto: retorna link do PDF ────────────────────────
+      if (!charge.bankSlipUrl && !charge.invoiceUrl) {
+        return errorResponse("Link do boleto não gerado", 502);
+      }
       return successResponse(
-        { invoiceUrl: charge.invoiceUrl, billingType, valor: SUBSCRIPTION_PRICE },
-        "Link de pagamento gerado com sucesso"
+        { tipo: "boleto", chargeId: charge.id, bankSlipUrl: charge.bankSlipUrl ?? charge.invoiceUrl, valor: SUBSCRIPTION_PRICE, vencimento: dueDate },
+        "Boleto gerado"
       );
     } catch (err: any) {
       console.error("[Asaas] Erro ao gerar cobrança de assinatura:", err?.message);
