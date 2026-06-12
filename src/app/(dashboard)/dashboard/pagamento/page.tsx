@@ -29,7 +29,7 @@ const BILLING_OPTIONS = [
 type BillingType = typeof BILLING_OPTIONS[number]["value"];
 type Stage = "selector" | "loading" | "pix" | "boleto" | "success";
 
-interface PixData { pixQrCodeUrl: string; pixCopiaECola: string; vencimento: string }
+interface PixData { pixQrCodeBase64: string; pixCopiaECola: string; vencimento: string }
 interface BoletoData { bankSlipUrl: string; vencimento: string }
 
 export default function PagamentoPage() {
@@ -90,7 +90,7 @@ export default function PagamentoPage() {
       }
 
       if (data.tipo === "pix") {
-        setPixData({ pixQrCodeUrl: data.pixQrCodeUrl, pixCopiaECola: data.pixCopiaECola, vencimento: data.vencimento });
+        setPixData({ pixQrCodeBase64: data.pixQrCodeBase64, pixCopiaECola: data.pixCopiaECola, vencimento: data.vencimento });
         setStage("pix");
         return;
       }
@@ -153,7 +153,7 @@ export default function PagamentoPage() {
               <div className="p-3 rounded-2xl border-2 border-indigo-100 dark:border-indigo-900/40 bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={pixData.pixQrCodeUrl}
+                  src={`data:image/png;base64,${pixData.pixQrCodeBase64}`}
                   alt="QR Code PIX"
                   className="w-48 h-48 object-contain"
                 />

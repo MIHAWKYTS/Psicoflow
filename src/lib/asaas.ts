@@ -116,6 +116,12 @@ export async function findOrCreateCustomer(
   });
 }
 
+export interface AsaasPixQrCode {
+  encodedImage: string; // base64 da imagem do QR code
+  payload: string;      // copia-e-cola
+  expirationDate: string;
+}
+
 // ─── Cobranças avulsas e parceladas ─────────────────────────
 
 export async function createCharge(input: AsaasChargeInput): Promise<AsaasCharge> {
@@ -131,6 +137,11 @@ export async function cancelCharge(asaasChargeId: string): Promise<void> {
 
 export async function getCharge(asaasChargeId: string): Promise<AsaasCharge> {
   return request<AsaasCharge>(`/payments/${asaasChargeId}`);
+}
+
+// QR code PIX não vem na criação da cobrança — precisa de chamada separada
+export async function getPixQrCode(chargeId: string): Promise<AsaasPixQrCode> {
+  return request<AsaasPixQrCode>(`/payments/${chargeId}/pixQrCode`);
 }
 
 // ─── Assinaturas (recorrente/sequencial) ────────────────────
