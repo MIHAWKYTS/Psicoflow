@@ -22,6 +22,7 @@ import {
   isToday,
   addMonths,
   subMonths,
+  startOfDay,
   format,
   parseISO,
 } from "date-fns";
@@ -202,6 +203,21 @@ export default function AgendaPage() {
     return sessions.filter(
       (s) => s.status === "agendada" && isSameDay(parseISO(s.dataHoraInicio), today)
     );
+  }, [sessions]);
+
+  const upcomingByDay = useMemo(() => {
+    const todayStart = startOfDay(new Date());
+    const upcoming = sessions
+      .filter((s) => s.status === "agendada" && parseISO(s.dataHoraInicio) >= todayStart)
+      .sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime());
+
+    const grouped: Record<string, Session[]> = {};
+    for (const s of upcoming) {
+      const key = format(parseISO(s.dataHoraInicio), "yyyy-MM-dd");
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(s);
+    }
+    return Object.entries(grouped);
   }, [sessions]);
 
   // ─── NAVEGAÇÃO DE MÊS ────────────────────────────────────
@@ -754,6 +770,97 @@ export default function AgendaPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* ─── PRÓXIMAS SESSÕES ─── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-extrabold text-slate-700 dark:text-slate-200 uppercase tracking-widest">
+            Próximas Sessões
+          </h2>
+          {upcomingByDay.length > 0 && (
+            <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">
+              {upcomingByDay.reduce((acc, [, s]) => acc + s.length, 0)} agendadas
+            </span>
+          )}
+        </div>
+
+        {loadingSessions ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader className="w-5 h-5 text-indigo-500 animate-spin" />
+          </div>
+        ) : upcomingByDay.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800 p-8 text-center">
+            <Sparkles className="w-6 h-6 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+            <p className="text-sm text-slate-400 dark:text-slate-500 font-medium">Nenhuma sessão agendada.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {upcomingByDay.map(([dateKey, daySessions]) => {
+              const date = parseISO(dateKey);
+              const isDayToday = isToday(date);
+              return (
+                <div key={dateKey} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800 overflow-hidden shadow-sm">
+                  {/* Cabeçalho do dia */}
+                  <div className={`px-4 py-2.5 flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 ${isDayToday ? "bg-indigo-50/60 dark:bg-indigo-950/20" : "bg-slate-50/40 dark:bg-slate-950/10"}`}>
+                    <span className={`text-xs font-extrabold capitalize ${isDayToday ? "text-indigo-600 dark:text-indigo-400" : "text-slate-600 dark:text-slate-300"}`}>
+                      {isDayToday
+                        ? "Hoje"
+                        : format(date, "EEEE", { locale: ptBR })}
+                      {", "}
+                      {format(date, "dd 'de' MMMM", { locale: ptBR })}
+                    </span>
+                    {isDayToday && (
+                      <span className="text-[9px] font-extrabold bg-indigo-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                        hoje
+                      </span>
+                    )}
+                    <span className="ml-auto text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                      {daySessions.length} {daySessions.length === 1 ? "sessão" : "sessões"}
+                    </span>
+                  </div>
+
+                  {/* Lista de sessões do dia */}
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {daySessions.map((session) => (
+                      <div
+                        key={session.id}
+                        onClick={(e) => handleSessionClick(e, session)}
+                        className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        <div className="text-center shrink-0 w-10">
+                          <p className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 leading-none">
+                            {format(parseISO(session.dataHoraInicio), "HH:mm")}
+                          </p>
+                          <p className="text-[10px] text-slate-400 leading-none mt-0.5">
+                            {format(parseISO(session.dataHoraFim), "HH:mm")}
+                          </p>
+                        </div>
+                        <div className="w-px h-8 bg-indigo-200 dark:bg-indigo-900/40 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate leading-snug">
+                            {session.patient.nome}
+                          </p>
+                          {session.patient.valorSessaoPadrao != null && (
+                            <p className="text-[11px] text-slate-400 font-medium">
+                              R$ {session.patient.valorSessaoPadrao.toFixed(2)}
+                            </p>
+                          )}
+                        </div>
+                        {session.lembreteEnviado && (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-900/30 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3" />
+                            Lembrete
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ─── MODAL DE DIA ─── */}
