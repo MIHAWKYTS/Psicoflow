@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
       }
 
       // ── PIX e Boleto: cobrança avulsa ───────────────────────
+      console.log("[checkout] criando cobrança", { billingType, customer: asaasCustomer.id });
       const charge = await createCharge({
         customer: asaasCustomer.id,
         billingType,
@@ -98,9 +99,11 @@ export async function POST(req: NextRequest) {
         description: "Assinatura PsiGen — Plano Clínica",
         externalReference: `sub_tenant_${tenant.id}`,
       });
+      console.log("[checkout] cobrança criada", { chargeId: charge.id, status: charge.status });
 
       // ── PIX: busca QR code em endpoint separado ────────────
       if (billingType === "PIX") {
+        console.log("[checkout] buscando pixQrCode para", charge.id);
         const pix = await getPixQrCode(charge.id);
         return successResponse(
           {
