@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminToken } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { parseSafeBody } from "@/lib/api-helpers";
+import { cancelSubscription } from "@/lib/asaas";
+import { addDays } from "date-fns";
+
+const VALID_STATUS = ["trial", "ativo", "inadimplente", "cancelado"] as const;
+type StatusAssinatura = (typeof VALID_STATUS)[number];
 
 export async function GET(
   req: NextRequest,
@@ -42,19 +47,47 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const body = await parseSafeBody<{ isActive?: boolean }>(req);
+  const body = await parseSafeBody<{
+    isActive?: boolean;
+    extendTrialDays?: number;
+    statusAssinatura?: string;
+  }>(req);
   if (!body) return NextResponse.json({ success: false, error: "Payload muito grande" }, { status: 413 });
-  const { isActive } = body;
+
+  const { isActive, extendTrialDays, statusAssinatura } = body;
 
   const existing = await prisma.tenant.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ success: false, error: "Tenant não encontrado." }, { status: 404 });
   }
 
-  const updated = await prisma.tenant.update({
-    where: { id },
-    data: { isActive },
-  });
+  const updateData: Record<string, unknown> = {};
+
+  if (isActive !== undefined) updateData.isActive = isActive;
+
+  if (extendTrialDays !== undefined) {
+    if (typeof extendTrialDays !== "number" || extendTrialDays <= 0) {
+      return NextResponse.json({ success: false, error: "extendTrialDays deve ser > 0" }, { status: 400 });
+    }
+    const base = existing.dataFimTrial && existing.dataFimTrial > new Date() ? existing.dataFimTrial : new Date();
+    updateData.dataFimTrial = addDays(base, extendTrialDays);
+  }
+
+  if (statusAssinatura !== undefined) {
+    if (!VALID_STATUS.includes(statusAssinatura as StatusAssinatura)) {
+      return NextResponse.json({ success: false, error: "statusAssinatura inválido" }, { status: 400 });
+    }
+    updateData.statusAssinatura = statusAssinatura;
+
+    if (statusAssinatura === "cancelado" && existing.asaasSubscriptionId) {
+      await cancelSubscription(existing.asaasSubscriptionId).catch((err) =>
+        console.warn("[admin] Falha ao cancelar subscription no Asaas:", err?.message)
+      );
+      updateData.asaasSubscriptionId = null;
+    }
+  }
+
+  const updated = await prisma.tenant.update({ where: { id }, data: updateData });
 
   return NextResponse.json({ success: true, data: updated });
 }

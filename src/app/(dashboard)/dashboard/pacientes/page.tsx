@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Plus, Search, Phone, Calendar, CreditCard, ChevronRight, X, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Search, Phone, Calendar, CreditCard, ChevronRight, X, Loader2, ToggleLeft, ToggleRight, UserCircle } from "lucide-react";
 import CpfInput from "@/components/CpfInput";
+
+type Psicologo = { id: string; nome: string };
 
 type Patient = {
   id: string;
@@ -12,6 +14,7 @@ type Patient = {
   telefoneWhatsapp?: string | null;
   frequenciaSessoes?: string | null;
   valorSessaoPadrao?: number | null;
+  psicologo?: Psicologo | null;
 };
 
 const EMPTY_FORM = {
@@ -40,6 +43,9 @@ export default function PacientesPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("todos");
   const [loading, setLoading] = useState(true);
+  const [psicologos, setPsicologos] = useState<Psicologo[]>([]);
+  const [assignDropdown, setAssignDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
@@ -80,8 +86,38 @@ export default function PacientesPage() {
     }
   }
 
+  async function handleAssignPsicologo(patientId: string, psicologoId: string | null) {
+    setAssignDropdown(null);
+    setPatients((prev) =>
+      prev.map((p) =>
+        p.id === patientId
+          ? { ...p, psicologo: psicologoId ? (psicologos.find((ps) => ps.id === psicologoId) ?? null) : null }
+          : p
+      )
+    );
+    await fetch(`/api/patients/${patientId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ psicologoId }),
+    });
+  }
+
   useEffect(() => {
     fetchPatients();
+    fetch("/api/users?psicologos=true")
+      .then((r) => r.json())
+      .then((d) => setPsicologos(d.data ?? []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setAssignDropdown(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   function openModal() {
@@ -219,15 +255,56 @@ export default function PacientesPage() {
                       <h3 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-500 transition-colors truncate">
                         {patient.nome}
                       </h3>
-                      <span
-                        className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded-full uppercase border mt-1 ${
-                          patient.status === "ativo"
-                            ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30"
-                            : "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-450 border-slate-100 dark:border-slate-800"
-                        }`}
-                      >
-                        {patient.status}
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span
+                          className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded-full uppercase border ${
+                            patient.status === "ativo"
+                              ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30"
+                              : "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-450 border-slate-100 dark:border-slate-800"
+                          }`}
+                        >
+                          {patient.status}
+                        </span>
+                        {psicologos.length > 0 && (
+                          <div className="relative" ref={assignDropdown === patient.id ? dropdownRef : undefined}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setAssignDropdown(assignDropdown === patient.id ? null : patient.id);
+                              }}
+                              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/20 text-violet-700 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                            >
+                              <UserCircle className="w-3 h-3" />
+                              {patient.psicologo?.nome ?? "—"}
+                            </button>
+                            {assignDropdown === patient.id && (
+                              <div className="absolute left-0 top-full mt-1 z-20 min-w-[160px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg overflow-hidden">
+                                {psicologos.map((ps) => (
+                                  <button
+                                    key={ps.id}
+                                    type="button"
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAssignPsicologo(patient.id, ps.id); }}
+                                    className={`w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 dark:hover:bg-slate-700 transition-colors ${patient.psicologo?.id === ps.id ? "font-bold text-indigo-600 dark:text-indigo-400" : "text-slate-700 dark:text-slate-200"}`}
+                                  >
+                                    {ps.nome}
+                                  </button>
+                                ))}
+                                {patient.psicologo && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAssignPsicologo(patient.id, null); }}
+                                    className="w-full text-left px-3 py-2 text-xs text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 border-t border-slate-100 dark:border-slate-700 transition-colors"
+                                  >
+                                    Remover atribuição
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">

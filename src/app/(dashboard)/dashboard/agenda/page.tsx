@@ -7,6 +7,10 @@ const AgendaReminderModal = dynamic(
   () => import("@/components/dashboard/AgendaReminderModal"),
   { ssr: false }
 );
+const AgendaDayModal = dynamic(
+  () => import("@/components/dashboard/AgendaDayModal"),
+  { ssr: false }
+);
 import {
   startOfMonth,
   endOfMonth,
@@ -18,6 +22,7 @@ import {
   isToday,
   addMonths,
   subMonths,
+  startOfDay,
   format,
   parseISO,
 } from "date-fns";
@@ -102,6 +107,9 @@ export default function AgendaPage() {
   const [formStartTime, setFormStartTime] = useState("09:00");
   const [formEndTime, setFormEndTime] = useState("10:00");
   const [formStatus, setFormStatus] = useState<"agendada" | "realizada" | "cancelada" | "falta">("agendada");
+
+  // Modal de dia
+  const [modalDay, setModalDay] = useState<Date | null>(null);
 
   // Modal de lembretes em massa
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -197,6 +205,21 @@ export default function AgendaPage() {
     );
   }, [sessions]);
 
+  const upcomingByDay = useMemo(() => {
+    const todayStart = startOfDay(new Date());
+    const upcoming = sessions
+      .filter((s) => s.status === "agendada" && parseISO(s.dataHoraInicio) >= todayStart)
+      .sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime());
+
+    const grouped: Record<string, Session[]> = {};
+    for (const s of upcoming) {
+      const key = format(parseISO(s.dataHoraInicio), "yyyy-MM-dd");
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(s);
+    }
+    return Object.entries(grouped);
+  }, [sessions]);
+
   // ─── NAVEGAÇÃO DE MÊS ────────────────────────────────────
   const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
@@ -225,7 +248,11 @@ export default function AgendaPage() {
   };
 
   // ─── SIDEBAR ─────────────────────────────────────────────
-  const handleDayClick = (date: Date) => {
+  const handleDayClick = (date: Date, hasSessions = false) => {
+    if (hasSessions) {
+      setModalDay(date);
+      return;
+    }
     setSelectedDate(date);
     setFormDate(format(date, "yyyy-MM-dd"));
     setFormStartTime("09:00");
@@ -387,13 +414,13 @@ export default function AgendaPage() {
     }
   };
 
-  const handleSendReminders = async () => {
+  const handleSendReminders = async (templateId?: string) => {
     setReminderSending(true);
     try {
       const res = await fetch("/api/whatsapp/send-reminders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: reminderDate }),
+        body: JSON.stringify({ date: reminderDate, ...(templateId && { templateId }) }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -674,7 +701,7 @@ export default function AgendaPage() {
               return (
                 <div
                   key={day.toString() + idx}
-                  onClick={() => handleDayClick(day)}
+                  onClick={() => handleDayClick(day, sortedSessions.length > 0)}
                   className={`min-h-[120px] bg-white dark:bg-slate-900 p-2 flex flex-col gap-1.5 transition-all select-none relative group cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-900/40 ${
                     !isCurrentMonth ? "bg-slate-50/40 dark:bg-slate-950/10 opacity-40" : ""
                   } ${
@@ -744,6 +771,111 @@ export default function AgendaPage() {
           ))}
         </div>
       </div>
+
+      {/* ─── PRÓXIMAS SESSÕES ─── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-extrabold text-slate-700 dark:text-slate-200 uppercase tracking-widest">
+            Próximas Sessões
+          </h2>
+          {upcomingByDay.length > 0 && (
+            <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">
+              {upcomingByDay.reduce((acc, [, s]) => acc + s.length, 0)} agendadas
+            </span>
+          )}
+        </div>
+
+        {loadingSessions ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader className="w-5 h-5 text-indigo-500 animate-spin" />
+          </div>
+        ) : upcomingByDay.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800 p-8 text-center">
+            <Sparkles className="w-6 h-6 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+            <p className="text-sm text-slate-400 dark:text-slate-500 font-medium">Nenhuma sessão agendada.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {upcomingByDay.map(([dateKey, daySessions]) => {
+              const date = parseISO(dateKey);
+              const isDayToday = isToday(date);
+              return (
+                <div key={dateKey} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800 overflow-hidden shadow-sm">
+                  {/* Cabeçalho do dia */}
+                  <div className={`px-4 py-2.5 flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 ${isDayToday ? "bg-indigo-50/60 dark:bg-indigo-950/20" : "bg-slate-50/40 dark:bg-slate-950/10"}`}>
+                    <span className={`text-xs font-extrabold capitalize ${isDayToday ? "text-indigo-600 dark:text-indigo-400" : "text-slate-600 dark:text-slate-300"}`}>
+                      {isDayToday
+                        ? "Hoje"
+                        : format(date, "EEEE", { locale: ptBR })}
+                      {", "}
+                      {format(date, "dd 'de' MMMM", { locale: ptBR })}
+                    </span>
+                    {isDayToday && (
+                      <span className="text-[9px] font-extrabold bg-indigo-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                        hoje
+                      </span>
+                    )}
+                    <span className="ml-auto text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                      {daySessions.length} {daySessions.length === 1 ? "sessão" : "sessões"}
+                    </span>
+                  </div>
+
+                  {/* Lista de sessões do dia */}
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {daySessions.map((session) => (
+                      <div
+                        key={session.id}
+                        onClick={(e) => handleSessionClick(e, session)}
+                        className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        <div className="text-center shrink-0 w-10">
+                          <p className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 leading-none">
+                            {format(parseISO(session.dataHoraInicio), "HH:mm")}
+                          </p>
+                          <p className="text-[10px] text-slate-400 leading-none mt-0.5">
+                            {format(parseISO(session.dataHoraFim), "HH:mm")}
+                          </p>
+                        </div>
+                        <div className="w-px h-8 bg-indigo-200 dark:bg-indigo-900/40 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate leading-snug">
+                            {session.patient.nome}
+                          </p>
+                          {session.patient.valorSessaoPadrao != null && (
+                            <p className="text-[11px] text-slate-400 font-medium">
+                              R$ {session.patient.valorSessaoPadrao.toFixed(2)}
+                            </p>
+                          )}
+                        </div>
+                        {session.lembreteEnviado && (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-900/30 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3" />
+                            Lembrete
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ─── MODAL DE DIA ─── */}
+      {modalDay && (
+        <AgendaDayModal
+          day={modalDay}
+          sessions={sessions.filter((s) => isSameDay(parseISO(s.dataHoraInicio), modalDay)) as any}
+          onClose={() => setModalDay(null)}
+          onSelectSession={(session) => {
+            setModalDay(null);
+            const full = sessions.find((s) => s.id === (session as any).id);
+            if (full) handleSessionClick({ stopPropagation: () => {} } as React.MouseEvent, full);
+          }}
+        />
+      )}
 
       {/* ─── MODAL DE LEMBRETES EM MASSA ─── */}
       {showReminderModal && (

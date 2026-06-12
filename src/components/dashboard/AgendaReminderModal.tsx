@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import {
   X,
@@ -26,6 +27,13 @@ type ReminderProgress = {
   error?: string;
 } | null;
 
+type MessageTemplate = {
+  id: string;
+  nome: string;
+  mensagem: string;
+  isDefault: boolean;
+};
+
 interface AgendaReminderModalProps {
   onClose: () => void;
   reminderSending: boolean;
@@ -37,7 +45,7 @@ interface AgendaReminderModalProps {
   reminderLoadingSessions: boolean;
   reminderSessions: Session[];
   reminderProgress: ReminderProgress;
-  handleSendReminders: () => void;
+  handleSendReminders: (templateId?: string) => void;
 }
 
 export default function AgendaReminderModal({
@@ -53,6 +61,21 @@ export default function AgendaReminderModal({
   reminderProgress,
   handleSendReminders,
 }: AgendaReminderModalProps) {
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/whatsapp/templates")
+      .then((r) => r.json())
+      .then((d) => {
+        const list: MessageTemplate[] = d.data ?? [];
+        setTemplates(list);
+        const def = list.find((t) => t.isDefault);
+        if (def) setSelectedTemplateId(def.id);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -98,7 +121,62 @@ export default function AgendaReminderModal({
           )}
         </div>
 
-        <div className="p-5 space-y-4 max-h-80 overflow-y-auto">
+        <div className="p-5 space-y-4 max-h-96 overflow-y-auto">
+          {/* Template cards */}
+          {templates.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Mensagem a enviar:
+              </p>
+              <div className="grid gap-2">
+                {templates.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    disabled={reminderSending}
+                    onClick={() => setSelectedTemplateId(t.id)}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl border text-xs transition-all ${
+                      selectedTemplateId === t.id
+                        ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-700"
+                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                    }`}
+                  >
+                    <span className="font-semibold text-slate-700 dark:text-slate-200 block truncate">
+                      {t.nome}
+                      {t.isDefault && (
+                        <span className="ml-1.5 text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                          padrão
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-slate-400 dark:text-slate-500 line-clamp-2 mt-0.5">
+                      {t.mensagem.slice(0, 80)}{t.mensagem.length > 80 ? "…" : ""}
+                    </span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={reminderSending}
+                  onClick={() => setSelectedTemplateId(null)}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl border text-xs transition-all ${
+                    selectedTemplateId === null
+                      ? "border-slate-400 bg-slate-100 dark:bg-slate-800 dark:border-slate-500"
+                      : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                  }`}
+                >
+                  <span className="font-semibold text-slate-500 dark:text-slate-400">
+                    Mensagem padrão do sistema
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+          {templates.length === 0 && (
+            <p className="text-xs text-slate-400 dark:text-slate-500 italic">
+              Usando mensagem padrão do sistema.
+            </p>
+          )}
+
           {reminderLoadingSessions ? (
             <div className="flex items-center justify-center py-6">
               <Loader className="w-5 h-5 text-emerald-500 animate-spin" />
@@ -215,7 +293,7 @@ export default function AgendaReminderModal({
               </button>
               <button
                 type="button"
-                onClick={handleSendReminders}
+                onClick={() => handleSendReminders(selectedTemplateId ?? undefined)}
                 disabled={reminderSending || reminderSessions.length === 0}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >

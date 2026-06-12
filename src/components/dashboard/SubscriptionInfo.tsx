@@ -8,6 +8,7 @@ import { ptBR } from "date-fns/locale";
 interface SubscriptionData {
   statusAssinatura: string;
   dataFimAcesso: string | null;
+  dataFimTrial: string | null;
   temAssinaturaRecorrente: boolean;
 }
 
@@ -82,16 +83,24 @@ export default function SubscriptionInfo() {
                 <span className="text-xs font-medium">Acesso até {dataFimFormatada}</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
+              <div className={`flex items-center gap-1.5 ${data.statusAssinatura === "trial" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                {data.statusAssinatura === "trial" ? (
+                  <AlertCircle className="w-3.5 h-3.5" />
+                ) : (
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                )}
                 <span className="text-xs font-medium">
-                  {data.temAssinaturaRecorrente ? "Renovação automática ativa" : "Ativo"}
+                  {data.statusAssinatura === "trial"
+                    ? `Período de teste${data.dataFimTrial ? ` · até ${format(parseISO(data.dataFimTrial), "dd/MM/yyyy")}` : ""}`
+                    : data.temAssinaturaRecorrente
+                    ? "Renovação automática ativa"
+                    : "Ativo"}
                 </span>
               </div>
             )}
           </div>
 
-          {!cancelamentoPendente && (
+          {!cancelamentoPendente && data.temAssinaturaRecorrente && (
             <button
               onClick={() => setShowModal(true)}
               className="text-xs text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 font-medium transition-colors"

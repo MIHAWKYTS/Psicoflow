@@ -99,6 +99,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 // ─── Clientes ───────────────────────────────────────────────
 
+export async function createCustomer(input: AsaasCustomerInput): Promise<AsaasCustomer> {
+  return request<AsaasCustomer>("/customers", {
+    method: "POST",
+    body: JSON.stringify({
+      name: input.name,
+      cpfCnpj: input.cpfCnpj?.replace(/\D/g, "") || undefined,
+      email: input.email || undefined,
+      mobilePhone: input.mobilePhone?.replace(/\D/g, "") || undefined,
+    }),
+  });
+}
+
 export async function findOrCreateCustomer(
   input: AsaasCustomerInput
 ): Promise<AsaasCustomer> {
@@ -143,6 +155,8 @@ export async function cancelCharge(asaasChargeId: string): Promise<void> {
 export async function getCharge(asaasChargeId: string): Promise<AsaasCharge> {
   return request<AsaasCharge>(`/payments/${asaasChargeId}`);
 }
+
+export const getPayment = getCharge;
 
 // QR code PIX não vem na criação da cobrança — precisa de chamada separada.
 // O Asaas pode demorar alguns segundos para gerar o QR junto ao Banco Central,

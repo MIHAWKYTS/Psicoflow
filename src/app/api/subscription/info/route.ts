@@ -7,7 +7,7 @@ export async function GET() {
   return withAuth(async (ctx) => {
     const tenant = await prisma.tenant.findUnique({
       where: { id: ctx.tenantId },
-      select: { statusAssinatura: true, dataFimAcesso: true, asaasSubscriptionId: true },
+      select: { statusAssinatura: true, dataFimAcesso: true, dataFimTrial: true, asaasSubscriptionId: true },
     });
 
     if (!tenant) return errorResponse("Tenant não encontrado", 404);
@@ -15,6 +15,7 @@ export async function GET() {
     return successResponse({
       statusAssinatura: tenant.statusAssinatura,
       dataFimAcesso: tenant.dataFimAcesso?.toISOString() ?? null,
+      dataFimTrial: tenant.dataFimTrial?.toISOString() ?? null,
       temAssinaturaRecorrente: !!tenant.asaasSubscriptionId,
     });
   });

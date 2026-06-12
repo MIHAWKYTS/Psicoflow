@@ -31,6 +31,7 @@ import { ptBR } from "date-fns/locale";
 import dynamic from "next/dynamic";
 
 const SessionDetailsSidebar = dynamic(() => import("./SessionDetailsSidebar"), { ssr: false });
+const AgendaDayModal = dynamic(() => import("./AgendaDayModal"), { ssr: false });
 
 type Session = {
   id: string;
@@ -81,6 +82,7 @@ export default function AgendaCalendar() {
   const [reminderJob, setReminderJob] = useState<ReminderJob | null>(null);
   const [sendingReminders, setSendingReminders] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [modalDay, setModalDay] = useState<Date | null>(null);
 
   const getPeriodBounds = useCallback(() => {
     if (view === "semana") {
@@ -346,49 +348,71 @@ export default function AgendaCalendar() {
               const dayLabel = format(day, "EEE (dd/MM)", { locale: ptBR });
               const capitalDay = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
 
+              const visibleSessions = sessoesDoDia.slice(0, 3);
+              const hiddenCount = sessoesDoDia.length - visibleSessions.length;
+
               return (
-                <div key={day.toISOString()} className="p-4 min-h-[400px] flex flex-col space-y-3">
+                <div key={day.toISOString()} className="p-4 flex flex-col space-y-3">
                   <div className="pb-2 border-b border-slate-200/65 dark:border-slate-800">
-                    <span className={`text-sm font-semibold ${
-                      isSameDay(day, today)
-                        ? "text-indigo-600 dark:text-white"
-                        : "text-slate-800 dark:text-white"
-                    }`}>
-                      {capitalDay}
-                    </span>
-                    <span className="text-xs text-slate-400 dark:text-slate-300 block mt-0.5">
-                      {sessoesDoDia.length} sessões
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => sessoesDoDia.length > 0 && setModalDay(day)}
+                      className={`text-left w-full group ${sessoesDoDia.length > 0 ? "cursor-pointer" : "cursor-default"}`}
+                    >
+                      <span className={`text-sm font-semibold block ${
+                        isSameDay(day, today)
+                          ? "text-indigo-600 dark:text-white"
+                          : sessoesDoDia.length > 0
+                          ? "group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors text-slate-800 dark:text-white"
+                          : "text-slate-800 dark:text-white"
+                      }`}>
+                        {capitalDay}
+                      </span>
+                      <span className="text-xs text-slate-400 dark:text-slate-300 block mt-0.5">
+                        {sessoesDoDia.length} sessão{sessoesDoDia.length !== 1 ? "ões" : ""}
+                      </span>
+                    </button>
                   </div>
-                  <div className="flex-1 space-y-2.5">
+                  <div className="space-y-2.5">
                     {sessoesDoDia.length > 0 ? (
-                      sessoesDoDia.map((session) => {
-                        const hora = new Date(session.dataHoraInicio).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          timeZone: "America/Sao_Paulo",
-                        });
-                        return (
-                          <div
-                            key={session.id}
-                            onClick={() => handleCardClick(session)}
-                            className={`p-3 rounded-xl border cursor-pointer transition-all ${statusThemes[session.status]}`}
-                          >
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-xs font-bold flex items-center gap-1.5">
-                                <Clock className="w-3.5 h-3.5" />
-                                {hora}
-                              </span>
-                              <span className={`w-2.5 h-2.5 rounded-full ${dotColors[session.status]}`} />
+                      <>
+                        {visibleSessions.map((session) => {
+                          const hora = new Date(session.dataHoraInicio).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            timeZone: "America/Sao_Paulo",
+                          });
+                          return (
+                            <div
+                              key={session.id}
+                              onClick={() => handleCardClick(session)}
+                              className={`p-3 rounded-xl border cursor-pointer transition-all ${statusThemes[session.status]}`}
+                            >
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-xs font-bold flex items-center gap-1.5">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  {hora}
+                                </span>
+                                <span className={`w-2.5 h-2.5 rounded-full ${dotColors[session.status]}`} />
+                              </div>
+                              <h4 className="text-xs font-bold leading-snug tracking-tight truncate">
+                                {session.patient.nome}
+                              </h4>
                             </div>
-                            <h4 className="text-xs font-bold leading-snug tracking-tight truncate">
-                              {session.patient.nome}
-                            </h4>
-                          </div>
-                        );
-                      })
+                          );
+                        })}
+                        {hiddenCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setModalDay(day)}
+                            className="w-full text-center text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 hover:bg-indigo-100 dark:hover:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/30 rounded-xl py-2 transition-colors"
+                          >
+                            + {hiddenCount} mais
+                          </button>
+                        )}
+                      </>
                     ) : (
-                      <div className="h-full flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                      <div className="flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-4 min-h-[80px]">
                         <span className="text-xs text-slate-400 text-center">Nenhuma sessão agendada</span>
                       </div>
                     )}
@@ -410,18 +434,20 @@ export default function AgendaCalendar() {
             <div className="grid grid-cols-7 gap-1">
               {monthCells.map((day, idx) => {
                 if (!day) return <div key={`empty-${idx}`} />;
-                const temSessoes = filteredSessions.some((s) =>
+                const sessoesDoDia = filteredSessions.filter((s) =>
                   isSameDay(new Date(s.dataHoraInicio), day)
                 );
+                const temSessoes = sessoesDoDia.length > 0;
                 const isToday = isSameDay(day, today);
                 return (
                   <div
                     key={day.toISOString()}
+                    onClick={() => temSessoes && setModalDay(day)}
                     className={`aspect-square p-1.5 border rounded-lg flex flex-col justify-between items-center transition-all ${
                       isToday
                         ? "border-indigo-400 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-950/20"
                         : "border-slate-100 dark:border-slate-800/60 bg-white dark:bg-slate-900"
-                    } ${temSessoes ? "ring-2 ring-indigo-500/10" : ""}`}
+                    } ${temSessoes ? "ring-2 ring-indigo-500/10 cursor-pointer hover:ring-indigo-500/30 hover:border-indigo-300 dark:hover:border-indigo-700" : ""}`}
                   >
                     <span className={`text-xs font-bold ${
                       isToday ? "text-indigo-600 dark:text-white" : "text-slate-600 dark:text-white"
@@ -453,6 +479,18 @@ export default function AgendaCalendar() {
         session={selectedSession}
         onStatusChange={handleStatusChange}
       />
+
+      {modalDay && (
+        <AgendaDayModal
+          day={modalDay}
+          sessions={filteredSessions.filter((s) => isSameDay(new Date(s.dataHoraInicio), modalDay))}
+          onClose={() => setModalDay(null)}
+          onSelectSession={(session) => {
+            setModalDay(null);
+            handleCardClick(session);
+          }}
+        />
+      )}
     </div>
   );
 }
