@@ -1,0 +1,39 @@
+# Dependências
+node_modules
+
+# Build anterior
+.next
+out
+
+# Arquivos de ambiente (serão injetados em runtime)
+.env
+.env.local
+.env*.local
+
+# Git
+.git
+.gitignore
+
+# Editor / IDE
+.vscode
+.idea
+.cursor
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+
+# Agentes / Specs (não vão para a imagem)
+.agent
+.claude
+.codex
+.agents
+openspec
+.openspec.yaml
+
+# Misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+README.md
+relatorio_desenvolvimento.txt

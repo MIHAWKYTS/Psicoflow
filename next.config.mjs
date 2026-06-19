@@ -5,6 +5,8 @@ const nextConfig = {
   turbopack: {
     root: new URL(".", import.meta.url).pathname,
   },
+  // Habilita build standalone para Docker (bundle mínimo para produção)
+  output: 'standalone',
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',

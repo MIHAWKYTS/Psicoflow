@@ -12,10 +12,10 @@ services:
     container_name: psicoflow-db
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"   # host 5433 → container 5432 (evita conflito com postgres local)
     environment:
       POSTGRES_USER: psicoflow
-      POSTGRES_PASSWORD: SENHA_REMOVIDA
+      POSTGRES_PASSWORD: e6088195fabb99bd3d1a38d895c791174d4ea737b90e88bd97ca189fbaea5c7c77207c1e446d1553d8b76f1ba70d08442fc937b8666d3aa2eb249302d3a29d36
       POSTGRES_DB: psicoflow_db
     volumes:
       - psicoflow_pgdata:/var/lib/postgresql/data
@@ -24,6 +24,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ─── Aplicação PsicoFlow (Next.js) ─────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: psicoflow-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env                          # segredos injetados em runtime, não na imagem
+    environment:
+      # Sobrescreve a DATABASE_URL para apontar para o serviço interno
+      DATABASE_URL: "postgresql://psicoflow:e6088195fabb99bd3d1a38d895c791174d4ea737b90e88bd97ca189fbaea5c7c77207c1e446d1553d8b76f1ba70d08442fc937b8666d3aa2eb249302d3a29d36@postgres:5432/psicoflow_db?schema=public"
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # ─── pgAdmin (opcional, para visualização) ─────────────
   pgadmin:
