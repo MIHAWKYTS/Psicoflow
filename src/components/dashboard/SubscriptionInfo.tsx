@@ -76,7 +76,7 @@ export default function SubscriptionInfo() {
 
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <p className="text-xs text-slate-500 dark:text-slate-400">Plano Clínica · R$ 120/mês</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Plano Clínica · R$ 100/mês</p>
             {cancelamentoPendente ? (
               <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                 <AlertCircle className="w-3.5 h-3.5" />

@@ -13,7 +13,7 @@ import {
 } from "@/lib/asaas";
 import { format, addDays } from "date-fns";
 
-export const SUBSCRIPTION_PRICE = 120;
+export const SUBSCRIPTION_PRICE = 100;
 
 const ALLOWED_BILLING_TYPES: AsaasBillingType[] = ["PIX", "BOLETO", "CREDIT_CARD"];
 

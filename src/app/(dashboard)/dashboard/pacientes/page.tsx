@@ -462,7 +462,7 @@ export default function PacientesPage() {
                     step="0.01"
                     value={form.valorSessaoPadrao}
                     onChange={(e) => set("valorSessaoPadrao", e.target.value)}
-                    placeholder="150,00"
+                    placeholder="100,00"
                     className={inputClass}
                   />
                 </div>
