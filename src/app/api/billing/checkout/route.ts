@@ -6,7 +6,7 @@ import { createCustomer, createSubscription, getSubscriptionPayments, type Asaas
 import { format, addDays } from "date-fns";
 
 const ALLOWED_BILLING_TYPES: AsaasBillingType[] = ["CREDIT_CARD", "PIX"];
-const SUBSCRIPTION_PRICE = 1;
+const SUBSCRIPTION_PRICE = 5;
 
 export async function POST(req: NextRequest) {
   return withAuth(async (ctx) => {
